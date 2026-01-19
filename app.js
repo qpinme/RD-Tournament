@@ -4,7 +4,8 @@
 // ONLY THESE EMAILS CAN ACCESS TOURNAMENT SETUP
 const AUTHORIZED_ORGANIZERS = [
     "qpinme@gmail.com",
-    "rbalakr@gmail.com"
+    "rbalakr@gmail.com",
+    "droidment@gmail.com"
 ];
 
 // ============================================
@@ -40,6 +41,73 @@ function isFirebaseConfigured() {
 // Check if user is authorized organizer
 function isAuthorizedOrganizer(email) {
     return AUTHORIZED_ORGANIZERS.map(e => e.toLowerCase()).includes(email.toLowerCase());
+}
+
+function askForRole() {
+    return new Promise((resolve) => {
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+        modal.innerHTML = `
+            <div class="bg-white rounded-lg max-w-md w-full p-6">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">Choose Your Role</h3>
+                <p class="text-gray-600 mb-6">You are registered as both an organizer and a team captain. Which role would you like to use?</p>
+                <div class="flex gap-3">
+                    <button class="choose-organizer flex-1 bg-orange-500 text-white py-3 rounded-lg hover:bg-orange-600">
+                        Organizer Dashboard
+                    </button>
+                    <button class="choose-captain flex-1 bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600">
+                        My Team (Captain)
+                    </button>
+                </div>
+                <p class="text-xs text-gray-500 mt-3 text-center">You can switch roles anytime using the button in the header</p>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        modal.querySelector('.choose-organizer').addEventListener('click', () => {
+            modal.remove();
+            resolve('organizer');
+        });
+        
+        modal.querySelector('.choose-captain').addEventListener('click', () => {
+            modal.remove();
+            resolve('captain');
+        });
+    });
+}
+
+function showRoleSwitcher(currentRole, captainSnapshot) {
+    const userInfo = document.getElementById('user-info');
+    
+    // Remove existing switcher if present
+    const existingSwitcher = document.getElementById('role-switcher');
+    if (existingSwitcher) existingSwitcher.remove();
+    
+    const switcher = document.createElement('button');
+    switcher.id = 'role-switcher';
+    switcher.className = 'ml-3 bg-purple-500 text-white px-3 py-1 rounded text-sm hover:bg-purple-600';
+    switcher.textContent = currentRole === 'organizer' ? '🏐 Switch to Captain' : '⚙️ Switch to Organizer';
+    
+    switcher.addEventListener('click', async () => {
+        const newRole = currentRole === 'organizer' ? 'captain' : 'organizer';
+        
+        // Update role in database
+        const updates = { role: newRole };
+        
+        if (newRole === 'captain' && captainSnapshot.exists()) {
+            const captainId = Object.keys(captainSnapshot.val())[0];
+            const captainData = captainSnapshot.val()[captainId];
+            updates.teamId = captainData.teamId;
+            updates.captainId = captainId;
+        }
+        
+        await update(ref(database, `users/${currentUser.uid}`), updates);
+        
+        showToast(`Switched to ${newRole} view`, 'success');
+        window.location.reload();
+    });
+    
+    userInfo.appendChild(switcher);
 }
 
 // Initialize app
@@ -101,10 +169,21 @@ async function handleAuthUser(user) {
         const userRef = ref(database, `users/${user.uid}`);
         const userSnapshot = await get(userRef);
         
+        // Check if user is both organizer and captain
+        const isOrganizer = isAuthorizedOrganizer(user.email);
+        const captainQuery = query(ref(database, 'captains'), orderByChild('email'), equalTo(user.email));
+        const captainSnapshot = await get(captainQuery);
+        const isCaptain = captainSnapshot.exists();
+        
         if (userSnapshot.exists()) {
             const userData = userSnapshot.val();
             userRole = userData.role;
             userTeamId = userData.teamId;
+            
+            // If user is both organizer and captain, show role switcher
+            if (isOrganizer && isCaptain) {
+                showRoleSwitcher(userRole, captainSnapshot);
+            }
             
             if (userRole === 'organizer') {
                 await showOrganizerView();
@@ -113,24 +192,46 @@ async function handleAuthUser(user) {
             }
         } else {
             // New user - check if they're a registered captain or authorized organizer
-            const captainQuery = query(ref(database, 'captains'), orderByChild('email'), equalTo(user.email));
-            const captainSnapshot = await get(captainQuery);
-            
-            if (captainSnapshot.exists()) {
+            if (isCaptain) {
                 const captainId = Object.keys(captainSnapshot.val())[0];
                 const captainData = captainSnapshot.val()[captainId];
                 
-                await set(userRef, {
-                    email: user.email,
-                    role: 'captain',
-                    teamId: captainData.teamId,
-                    captainId: captainId
-                });
-                
-                userRole = 'captain';
-                userTeamId = captainData.teamId;
-                await showCaptainView();
-            } else if (isAuthorizedOrganizer(user.email)) {
+                // If they're also an organizer, ask which role they want
+                if (isOrganizer) {
+                    const role = await askForRole();
+                    if (role === 'organizer') {
+                        await set(userRef, {
+                            email: user.email,
+                            role: 'organizer',
+                            createdAt: new Date().toISOString()
+                        });
+                        userRole = 'organizer';
+                        await showOrganizerView();
+                    } else {
+                        await set(userRef, {
+                            email: user.email,
+                            role: 'captain',
+                            teamId: captainData.teamId,
+                            captainId: captainId
+                        });
+                        userRole = 'captain';
+                        userTeamId = captainData.teamId;
+                        await showCaptainView();
+                    }
+                    showRoleSwitcher(userRole, captainSnapshot);
+                } else {
+                    await set(userRef, {
+                        email: user.email,
+                        role: 'captain',
+                        teamId: captainData.teamId,
+                        captainId: captainId
+                    });
+                    
+                    userRole = 'captain';
+                    userTeamId = captainData.teamId;
+                    await showCaptainView();
+                }
+            } else if (isOrganizer) {
                 // Authorized organizer - create organizer account
                 await set(userRef, {
                     email: user.email,
@@ -485,7 +586,7 @@ async function showCaptainView() {
                 ` : captainAsPlayer[1].waiverSigned ? `
                     <div class="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
                         <p class="text-sm text-green-800">
-                            ✓ You're registered as a player | Lunch: ${captainAsPlayer[1].lunchChoice === 'veg' ? 'Veg' : 'Non-Veg'}
+                            ✓ You're registered as a player | Lunch: ${captainAsPlayer[1].getLunchChoiceDisplay(lunchChoice)}
                         </p>
                     </div>
                 ` : `
@@ -501,14 +602,21 @@ async function showCaptainView() {
             </div>
 
             <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6">
-                <div class="flex justify-between items-center mb-4 sm:mb-6">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 sm:mb-6">
                     <div>
                         <h3 class="text-lg sm:text-xl font-bold text-gray-800">Team Roster</h3>
                         <p class="text-xs sm:text-sm text-gray-600">${Object.keys(players).length} players</p>
                     </div>
-                    <button id="add-player-btn" class="bg-orange-500 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg hover:bg-orange-600 text-sm sm:text-base">
-                        + Add
-                    </button>
+                    <div class="flex gap-2">
+                        ${Object.keys(players).length > 0 ? `
+                            <button id="message-players-btn" class="bg-purple-500 text-white px-3 py-2 rounded-lg hover:bg-purple-600 text-xs sm:text-sm whitespace-nowrap">
+                                📱 Message Players
+                            </button>
+                        ` : ''}
+                        <button id="add-player-btn" class="bg-orange-500 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg hover:bg-orange-600 text-sm sm:text-base whitespace-nowrap">
+                            + Add
+                        </button>
+                    </div>
                 </div>
 
                 <div id="players-list" class="space-y-3 sm:space-y-4">
@@ -534,7 +642,7 @@ async function showCaptainView() {
                                         </div>
                                         <div class="flex items-center gap-1">
                                             ${player.lunchChoice ? 
-                                                `<span class="text-green-600">🍽️ ${player.lunchChoice === 'veg' ? 'Veg' : 'Non-Veg'}</span>` : 
+                                                `<span class="text-green-600">🍽️ ${player.getLunchChoiceDisplay(lunchChoice)}</span>` : 
                                                 '<span class="text-red-600">🍽️ Pending</span>'
                                             }
                                         </div>
@@ -562,6 +670,14 @@ async function showCaptainView() {
     
     // Attach event listeners
     document.getElementById('add-player-btn').addEventListener('click', () => showAddPlayerModal(userTeamId));
+    
+    // Message Players button
+    const messagePlayersBtn = document.getElementById('message-players-btn');
+    if (messagePlayersBtn) {
+        messagePlayersBtn.addEventListener('click', () => {
+            messageCaptainPlayers(teamData, players);
+        });
+    }
     
     // Captain self-registration button
     const registerCaptainBtn = document.getElementById('register-captain-btn');
@@ -657,19 +773,16 @@ function showAddPlayerModal(teamId) {
             
             <form id="add-player-form" class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Player Name</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Player Name *</label>
                     <input type="text" id="player-name" class="w-full px-3 py-2 border border-gray-300 rounded-lg" required>
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                    <input type="email" id="player-email" class="w-full px-3 py-2 border border-gray-300 rounded-lg" required>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Phone (WhatsApp)</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Phone (WhatsApp) *</label>
                     <input type="tel" id="player-phone" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="+1234567890" required>
                 </div>
+                
+                <p class="text-xs text-gray-500">* Email will be collected when the player signs the waiver</p>
 
                 <div class="flex gap-3">
                     <button type="button" id="cancel-add" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400">
@@ -691,7 +804,7 @@ function showAddPlayerModal(teamId) {
         
         const playerData = {
             name: document.getElementById('player-name').value,
-            email: document.getElementById('player-email').value,
+            email: null, // Email will be filled when they sign waiver
             phone: document.getElementById('player-phone').value,
             waiverSigned: false,
             lunchChoice: null,
@@ -719,6 +832,115 @@ async function removePlayer(teamId, playerId) {
     }
 }
 
+function messageCaptainPlayers(teamData, players) {
+    const playersList = Object.entries(players);
+    
+    if (playersList.length === 0) {
+        showToast('No players to message', 'error');
+        return;
+    }
+    
+    // Filter options
+    const pendingWaiverPlayers = playersList.filter(([_, p]) => !p.waiverSigned);
+    const pendingLunchPlayers = playersList.filter(([_, p]) => !p.lunchChoice);
+    const completePlayers = playersList.filter(([_, p]) => p.waiverSigned && p.lunchChoice);
+    
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+    modal.innerHTML = `
+        <div class="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Message Your Players</h3>
+            
+            <div class="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                <p class="text-sm text-gray-700 mb-2">
+                    <strong>Select which players to message:</strong>
+                </p>
+                <div class="space-y-2">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="player-filter" value="all" checked class="w-4 h-4">
+                        <span class="text-sm">All Players (${playersList.length})</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="player-filter" value="pending-waiver" class="w-4 h-4">
+                        <span class="text-sm">⚠️ Pending Waiver Only (${pendingWaiverPlayers.length})</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="player-filter" value="pending-lunch" class="w-4 h-4">
+                        <span class="text-sm">🍽️ Pending Lunch Only (${pendingLunchPlayers.length})</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="player-filter" value="complete" class="w-4 h-4">
+                        <span class="text-sm">✅ Completed Only (${completePlayers.length})</span>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Message Template:</label>
+                <textarea id="player-message" class="w-full px-3 py-2 border border-gray-300 rounded-lg h-40 text-sm">Hi {name}!
+
+Reminder from your captain for Republic Day Tournament 2026 🏐
+
+*Team:* ${teamData.name}
+
+Please complete your registration ASAP:
+✅ Sign the waiver
+✅ Select lunch preference
+
+*Tournament Date:* January 24, 2026
+
+Click your registration link to complete!
+
+See you at the tournament! 🎉</textarea>
+            </div>
+            
+            <div class="flex gap-3">
+                <button class="close-modal flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400">
+                    Cancel
+                </button>
+                <button id="send-to-players" class="flex-1 bg-purple-500 text-white py-2 rounded-lg hover:bg-purple-600">
+                    Open WhatsApp for Selected Players
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    modal.querySelector('.close-modal').addEventListener('click', () => modal.remove());
+    
+    modal.querySelector('#send-to-players').addEventListener('click', () => {
+        const messageTemplate = document.getElementById('player-message').value;
+        const filter = document.querySelector('input[name="player-filter"]:checked').value;
+        
+        let selectedPlayers = playersList;
+        if (filter === 'pending-waiver') selectedPlayers = pendingWaiverPlayers;
+        if (filter === 'pending-lunch') selectedPlayers = pendingLunchPlayers;
+        if (filter === 'complete') selectedPlayers = completePlayers;
+        
+        if (selectedPlayers.length === 0) {
+            showToast('No players match the selected filter', 'error');
+            return;
+        }
+        
+        let successCount = 0;
+        selectedPlayers.forEach(([playerId, player], index) => {
+            setTimeout(() => {
+                const personalizedMessage = messageTemplate.replace('{name}', player.name);
+                const whatsappUrl = `https://wa.me/${player.phone.replace(/\D/g, '')}?text=${encodeURIComponent(personalizedMessage)}`;
+                window.open(whatsappUrl, '_blank');
+                successCount++;
+                
+                if (successCount === selectedPlayers.length) {
+                    showToast(`Opened WhatsApp for ${selectedPlayers.length} players!`, 'success');
+                }
+            }, index * 1000);
+        });
+        
+        modal.remove();
+    });
+}
+
 function shareViaWhatsApp(playerId, playerName, playerPhone, playerEmail, teamName) {
     const link = `${window.location.origin}${window.location.pathname}?player=${playerId}`;
     const message = `Hi ${playerName}!
@@ -741,7 +963,7 @@ ${link}
 ✅ Sign waiver (required for participation)
 ✅ Choose lunch option
 
-Please complete this ASAP! See you on *January 26, 2026*! 🎉`;
+Please complete this ASAP! See you on *January 24, 2026*! 🎉`;
 
     const whatsappUrl = `https://wa.me/${playerPhone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
@@ -814,10 +1036,10 @@ async function showPlayerView(playerId) {
                     <p class="text-gray-600 mb-4">Your registration for ${teamData.name} has been submitted.</p>
                     <div class="bg-green-50 p-4 rounded-lg">
                         <p class="text-sm text-gray-700">
-                            <strong>Lunch Choice:</strong> ${playerData.lunchChoice === 'veg' ? 'Vegetarian' : 'Non-Vegetarian'}
+                            <strong>Lunch Choice:</strong> ${playerData.getLunchChoiceDisplay(lunchChoice)}
                         </p>
                     </div>
-                    <p class="text-sm text-gray-500 mt-4">See you at the tournament on January 26, 2026!</p>
+                    <p class="text-sm text-gray-500 mt-4">See you at the tournament on January 24, 2026!</p>
                 </div>
             ` : `
                 <div class="bg-white rounded-lg shadow-xl p-6 sm:p-8">
@@ -866,14 +1088,38 @@ async function showPlayerView(playerId) {
                             <p class="text-sm text-gray-600 mb-4">We will be providing lunch during the tournament. Please select your preference:</p>
                             
                             <div class="space-y-3">
-                                <label class="flex items-center gap-3 cursor-pointer p-3 border-2 border-gray-300 rounded-lg hover:bg-white ${playerData.lunchChoice === 'veg' ? 'border-orange-500 bg-orange-50' : ''}">
-                                    <input type="radio" name="lunch" value="veg" class="w-4 h-4 text-orange-500" required ${playerData.lunchChoice === 'veg' ? 'checked' : ''}>
-                                    <span class="text-gray-700">🥗 Vegetarian</span>
+                                <label class="flex items-start gap-3 cursor-pointer p-3 border-2 border-gray-300 rounded-lg hover:bg-white ${playerData.lunchChoice === 'veg' ? 'border-orange-500 bg-orange-50' : ''}">
+                                    <input type="radio" name="lunch" value="veg" class="w-4 h-4 text-orange-500 mt-1" required ${playerData.lunchChoice === 'veg' ? 'checked' : ''}>
+                                    <div>
+                                        <div class="text-gray-800 font-semibold">🥗 Vegetarian Menu</div>
+                                        <div class="text-xs text-gray-600 mt-1">
+                                            • Veg Appetizer<br>
+                                            • Veg Biryani<br>
+                                            • Gulab Jamun
+                                        </div>
+                                    </div>
                                 </label>
 
-                                <label class="flex items-center gap-3 cursor-pointer p-3 border-2 border-gray-300 rounded-lg hover:bg-white ${playerData.lunchChoice === 'nonveg' ? 'border-orange-500 bg-orange-50' : ''}">
-                                    <input type="radio" name="lunch" value="nonveg" class="w-4 h-4 text-orange-500" required ${playerData.lunchChoice === 'nonveg' ? 'checked' : ''}>
-                                    <span class="text-gray-700">🍗 Non-Vegetarian</span>
+                                <label class="flex items-start gap-3 cursor-pointer p-3 border-2 border-gray-300 rounded-lg hover:bg-white ${playerData.lunchChoice === 'nonveg' ? 'border-orange-500 bg-orange-50' : ''}">
+                                    <input type="radio" name="lunch" value="nonveg" class="w-4 h-4 text-orange-500 mt-1" required ${playerData.lunchChoice === 'nonveg' ? 'checked' : ''}>
+                                    <div>
+                                        <div class="text-gray-800 font-semibold">🍗 Non-Vegetarian Menu</div>
+                                        <div class="text-xs text-gray-600 mt-1">
+                                            • Non-Veg Appetizer<br>
+                                            • Chicken Biryani<br>
+                                            • Gulab Jamun
+                                        </div>
+                                    </div>
+                                </label>
+                                
+                                <label class="flex items-start gap-3 cursor-pointer p-3 border-2 border-gray-300 rounded-lg hover:bg-white ${playerData.lunchChoice === 'none' ? 'border-orange-500 bg-orange-50' : ''}">
+                                    <input type="radio" name="lunch" value="none" class="w-4 h-4 text-orange-500 mt-1" required ${playerData.lunchChoice === 'none' ? 'checked' : ''}>
+                                    <div>
+                                        <div class="text-gray-800 font-semibold">🚫 No Food</div>
+                                        <div class="text-xs text-gray-600 mt-1">
+                                            I will arrange my own lunch
+                                        </div>
+                                    </div>
                                 </label>
                             </div>
                         </div>
@@ -1282,6 +1528,10 @@ async function showOrganizerDashboard() {
                             <span class="text-gray-700 text-sm sm:text-base">🍗 Non-Vegetarian</span>
                             <span class="font-bold text-red-600 text-lg">${stats.nonVegCount}</span>
                         </div>
+                        <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
+                            <span class="text-gray-700 text-sm sm:text-base">🚫 No Food</span>
+                            <span class="font-bold text-gray-600 text-lg">${stats.noFoodCount}</span>
+                        </div>
                     </div>
                 </div>
 
@@ -1488,7 +1738,7 @@ Please login to the app using your registered email to:
 2. Sign the waiver
 3. Select lunch preference (Veg/Non-Veg)
 
-Tournament Date: *January 26, 2026*
+Tournament Date: *January 24, 2026*
 
 Questions? Reply to this message!
 
@@ -1616,7 +1866,7 @@ Reminder for Republic Day Tournament 2026 🏐
 ✅ Sign the liability waiver
 ✅ Select lunch preference (Veg/Non-Veg)
 
-*Tournament Date:* January 26, 2026
+*Tournament Date:* January 24, 2026
 
 We need your registration to finalize catering and logistics!
 
@@ -1721,7 +1971,7 @@ function showTeamPlayersModal(teamId, team) {
                                             ` : ''}
                                             <div class="flex items-center gap-1">
                                                 ${player.lunchChoice ? 
-                                                    `<span class="text-green-600">🍽️ ${player.lunchChoice === 'veg' ? 'Veg' : 'Non-Veg'}</span>` : 
+                                                    `<span class="text-green-600">🍽️ ${player.getLunchChoiceDisplay(lunchChoice)}</span>` : 
                                                     '<span class="text-red-600">🍽️ Pending</span>'
                                                 }
                                             </div>
@@ -1891,6 +2141,14 @@ function getLeagueName(leagueId) {
     return names[leagueId] || leagueId;
 }
 
+function getLunchChoiceDisplay(lunchChoice) {
+    if (!lunchChoice) return 'Pending';
+    if (lunchChoice === 'veg') return 'Veg';
+    if (lunchChoice === 'nonveg') return 'Non-Veg';
+    if (lunchChoice === 'none') return 'No Food';
+    return lunchChoice;
+}
+
 function calculateStats(teams) {
     let totalTeams = 0;
     let totalPlayers = 0;
@@ -1898,6 +2156,7 @@ function calculateStats(teams) {
     let completedLunch = 0;
     let vegCount = 0;
     let nonVegCount = 0;
+    let noFoodCount = 0;
     
     Object.values(teams).forEach(team => {
         totalTeams++;
@@ -1908,7 +2167,8 @@ function calculateStats(teams) {
                 if (player.lunchChoice) {
                     completedLunch++;
                     if (player.lunchChoice === 'veg') vegCount++;
-                    else nonVegCount++;
+                    else if (player.lunchChoice === 'nonveg') nonVegCount++;
+                    else if (player.lunchChoice === 'none') noFoodCount++;
                 }
             });
         }
@@ -1920,7 +2180,8 @@ function calculateStats(teams) {
         completedWaivers,
         completedLunch,
         vegCount,
-        nonVegCount
+        nonVegCount,
+        noFoodCount
     };
 }
 
