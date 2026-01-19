@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Republic Day Tournament 2026</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏐</text></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Firebase SDK v9 (modular) -->
+    <script type="module" src="app.js"></script>
+    
+    <style>
+        /* Mobile-friendly styles */
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #f97316;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Smooth transitions */
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        /* Mobile-optimized inputs */
+        input, select, textarea {
+            font-size: 16px !important; /* Prevents zoom on iOS */
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="fixed inset-0 bg-white flex items-center justify-center z-50">
+        <div class="text-center px-4">
+            <div class="loader mb-4"></div>
+            <p class="text-gray-600">Loading...</p>
+        </div>
+    </div>
+
+    <!-- Firebase Config Error -->
+    <div id="config-error" class="hidden fixed inset-0 bg-white flex items-center justify-center z-50 p-4">
+        <div class="max-w-md bg-red-50 border-2 border-red-300 rounded-lg p-6">
+            <div class="text-4xl text-center mb-4">⚠️</div>
+            <h2 class="text-xl font-bold text-red-800 mb-3 text-center">Firebase Not Configured</h2>
+            <p class="text-red-700 mb-4 text-sm">Please configure Firebase in <code class="bg-red-200 px-2 py-1 rounded">app.js</code> before using this app.</p>
+            <div class="bg-white p-3 rounded text-xs">
+                <p class="font-semibold mb-2">Quick Steps:</p>
+                <ol class="list-decimal ml-4 space-y-1">
+                    <li>Create Firebase project</li>
+                    <li>Copy your config</li>
+                    <li>Paste in app.js</li>
+                    <li>Reload this page</li>
+                </ol>
+            </div>
+            <p class="text-xs text-red-600 mt-3 text-center">See SETUP.md for detailed instructions</p>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app" class="hidden min-h-screen">
+        <!-- Header -->
+        <header class="bg-gradient-to-r from-orange-500 via-white to-green-500 shadow-lg sticky top-0 z-40">
+            <div class="max-w-7xl mx-auto px-4 py-4 sm:py-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2 sm:space-x-4">
+                        <div class="text-2xl sm:text-4xl">🏐</div>
+                        <div>
+                            <h1 class="text-lg sm:text-3xl font-bold text-gray-800">Republic Day Tournament</h1>
+                            <p class="text-xs sm:text-sm text-gray-600">January 26, 2026</p>
+                        </div>
+                    </div>
+                    <div id="user-info" class="hidden items-center gap-2 sm:gap-4">
+                        <span id="user-email" class="text-xs sm:text-sm text-gray-700 hidden sm:inline"></span>
+                        <button id="logout-btn" class="bg-red-500 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg hover:bg-red-600 text-sm">
+                            Logout
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="max-w-7xl mx-auto px-4 py-4 sm:py-8 pb-20">
+            <!-- Login View -->
+            <div id="login-view" class="hidden"></div>
+
+            <!-- Captain Dashboard -->
+            <div id="captain-view" class="hidden"></div>
+
+            <!-- Organizer Dashboard -->
+            <div id="organizer-view" class="hidden"></div>
+
+            <!-- Player Form -->
+            <div id="player-view" class="hidden"></div>
+        </main>
+    </div>
+
+    <!-- Mobile-friendly Toast Notifications -->
+    <div id="toast-container" class="fixed bottom-4 right-4 left-4 sm:left-auto sm:w-96 z-50 space-y-2"></div>
+</body>
+</html>
