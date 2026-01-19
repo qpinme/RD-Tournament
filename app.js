@@ -169,16 +169,25 @@ async function handleAuthUser(user) {
         const userRef = ref(database, `users/${user.uid}`);
         const userSnapshot = await get(userRef);
         
+        console.log('🔍 Debug - User email:', user.email);
+        console.log('🔍 Debug - User exists in DB:', userSnapshot.exists());
+        
         // Check if user is both organizer and captain
         const isOrganizer = isAuthorizedOrganizer(user.email);
         const captainQuery = query(ref(database, 'captains'), orderByChild('email'), equalTo(user.email));
         const captainSnapshot = await get(captainQuery);
         const isCaptain = captainSnapshot.exists();
         
+        console.log('🔍 Debug - Is organizer:', isOrganizer);
+        console.log('🔍 Debug - Is captain:', isCaptain);
+        
         if (userSnapshot.exists()) {
             const userData = userSnapshot.val();
             userRole = userData.role;
             userTeamId = userData.teamId;
+            
+            console.log('🔍 Debug - User role:', userRole);
+            console.log('🔍 Debug - Team ID:', userTeamId);
             
             // If user is both organizer and captain, show role switcher
             if (isOrganizer && isCaptain) {
@@ -191,10 +200,13 @@ async function handleAuthUser(user) {
                 await showCaptainView();
             }
         } else {
+            console.log('🔍 Debug - New user, checking registration...');
             // New user - check if they're a registered captain or authorized organizer
             if (isCaptain) {
                 const captainId = Object.keys(captainSnapshot.val())[0];
                 const captainData = captainSnapshot.val()[captainId];
+                
+                console.log('🔍 Debug - Captain data:', captainData);
                 
                 // If they're also an organizer, ask which role they want
                 if (isOrganizer) {
@@ -220,6 +232,7 @@ async function handleAuthUser(user) {
                     }
                     showRoleSwitcher(userRole, captainSnapshot);
                 } else {
+                    console.log('🔍 Debug - Creating captain user record...');
                     await set(userRef, {
                         email: user.email,
                         role: 'captain',
@@ -243,13 +256,20 @@ async function handleAuthUser(user) {
                 showToast('Welcome, organizer!', 'success');
                 await showOrganizerView();
             } else {
+                console.log('🔍 Debug - User not registered as captain or organizer');
                 showToast('You are not registered. Please contact the organizer.', 'error');
                 await signOut(auth);
             }
         }
     } catch (error) {
         console.error('Error fetching user data:', error);
-        showToast('Error loading user data', 'error');
+        console.error('Error details:', error.message, error.code);
+        showToast('Error loading user data: ' + error.message, 'error');
+        
+        // If permission denied, might be Firebase rules issue
+        if (error.code === 'PERMISSION_DENIED' || error.message.includes('permission')) {
+            showToast('Database permission error. Please check Firebase rules.', 'error');
+        }
     }
 }
 
@@ -586,7 +606,7 @@ async function showCaptainView() {
                 ` : captainAsPlayer[1].waiverSigned ? `
                     <div class="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
                         <p class="text-sm text-green-800">
-                            ✓ You're registered as a player | Lunch: ${captainAsPlayer[1].getLunchChoiceDisplay(lunchChoice)}
+                            ✓ You're registered as a player | Lunch: ${getLunchChoiceDisplay(captainAsPlayer[1].lunchChoice)}
                         </p>
                     </div>
                 ` : `
@@ -642,7 +662,7 @@ async function showCaptainView() {
                                         </div>
                                         <div class="flex items-center gap-1">
                                             ${player.lunchChoice ? 
-                                                `<span class="text-green-600">🍽️ ${player.getLunchChoiceDisplay(lunchChoice)}</span>` : 
+                                                `<span class="text-green-600">🍽️ ${getLunchChoiceDisplay(player.lunchChoice)}</span>` : 
                                                 '<span class="text-red-600">🍽️ Pending</span>'
                                             }
                                         </div>
@@ -1036,7 +1056,7 @@ async function showPlayerView(playerId) {
                     <p class="text-gray-600 mb-4">Your registration for ${teamData.name} has been submitted.</p>
                     <div class="bg-green-50 p-4 rounded-lg">
                         <p class="text-sm text-gray-700">
-                            <strong>Lunch Choice:</strong> ${playerData.getLunchChoiceDisplay(lunchChoice)}
+                            <strong>Lunch Choice:</strong> ${getLunchChoiceDisplay(playerData.lunchChoice)}
                         </p>
                     </div>
                     <p class="text-sm text-gray-500 mt-4">See you at the tournament on January 24, 2026!</p>
@@ -1971,7 +1991,7 @@ function showTeamPlayersModal(teamId, team) {
                                             ` : ''}
                                             <div class="flex items-center gap-1">
                                                 ${player.lunchChoice ? 
-                                                    `<span class="text-green-600">🍽️ ${player.getLunchChoiceDisplay(lunchChoice)}</span>` : 
+                                                    `<span class="text-green-600">🍽️ ${getLunchChoiceDisplay(player.lunchChoice)}</span>` : 
                                                     '<span class="text-red-600">🍽️ Pending</span>'
                                                 }
                                             </div>
