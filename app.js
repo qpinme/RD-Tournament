@@ -306,7 +306,26 @@ function showLoginView() {
             <div class="bg-white rounded-lg shadow-xl p-6 sm:p-8">
                 <h2 class="text-2xl font-bold text-center mb-6 text-gray-800">Tournament Login</h2>
                 
-                <div class="space-y-4 mb-6">
+                <form id="email-login-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                        <input type="email" id="login-email" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none" required placeholder="your@email.com">
+                        <p class="text-xs text-gray-500 mt-1">Use the email you registered with</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                        <input type="password" id="login-password" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none" required placeholder="Min 6 characters" minlength="6">
+                        <p class="text-xs text-gray-500 mt-1">First time? Create a new password (min 6 characters)</p>
+                    </div>
+
+                    <button type="submit" class="w-full bg-orange-500 text-white py-3 rounded-lg font-semibold hover:bg-orange-600 transition">
+                        Login / Sign Up
+                    </button>
+                </form>
+                
+                <div class="mt-6 text-center">
+                    <div class="text-gray-500 text-sm mb-3">or</div>
                     <button id="google-login-btn" class="w-full bg-white border-2 border-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-50 transition flex items-center justify-center gap-2">
                         <svg class="w-5 h-5" viewBox="0 0 24 24">
                             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -316,29 +335,20 @@ function showLoginView() {
                         </svg>
                         Sign in with Google
                     </button>
-                    
-                    <div class="text-center text-gray-500 text-sm">or</div>
                 </div>
 
-                <form id="email-login-form" class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                        <input type="email" id="login-email" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none" required placeholder="your@email.com">
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
-                        <input type="password" id="login-password" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none" required placeholder="••••••••">
-                    </div>
-
-                    <button type="submit" class="w-full bg-orange-500 text-white py-3 rounded-lg font-semibold hover:bg-orange-600 transition">
-                        Login
-                    </button>
-                </form>
-
                 <div class="mt-6 p-4 bg-blue-50 rounded-lg text-sm text-gray-700">
-                    <p class="font-semibold mb-2">For Captains:</p>
-                    <p>Use the email you registered with or sign in with Google</p>
+                    <p class="font-semibold mb-2">📧 For Captains & Organizers:</p>
+                    <ul class="text-xs space-y-1 ml-4 list-disc">
+                        <li>Enter your registered email and create a password</li>
+                        <li>First time? Just type a password and it will create your account</li>
+                        <li>Have Gmail? Use "Sign in with Google" button above</li>
+                    </ul>
+                </div>
+                
+                <div class="mt-4 p-4 bg-green-50 rounded-lg text-sm text-gray-700">
+                    <p class="font-semibold mb-2">👥 For Players:</p>
+                    <p class="text-xs">Click the registration link sent by your captain via WhatsApp</p>
                 </div>
             </div>
         </div>
@@ -361,14 +371,40 @@ async function handleGoogleLogin() {
 
 async function handleEmailLogin(e) {
     e.preventDefault();
-    const email = document.getElementById('login-email').value;
+    const email = document.getElementById('login-email').value.trim().toLowerCase();
     const password = document.getElementById('login-password').value;
     
+    if (password.length < 6) {
+        showToast('Password must be at least 6 characters', 'error');
+        return;
+    }
+    
     try {
+        // Try to sign in first
         await signInWithEmailAndPassword(auth, email, password);
+        showToast('Login successful!', 'success');
     } catch (error) {
-        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-            showToast('Invalid email or password', 'error');
+        // If user not found, try to create account
+        if (error.code === 'auth/user-not-found') {
+            try {
+                showToast('Creating your account...', 'info');
+                await createUserWithEmailAndPassword(auth, email, password);
+                showToast('Account created successfully!', 'success');
+            } catch (signupError) {
+                if (signupError.code === 'auth/email-already-in-use') {
+                    showToast('Email already in use. Please try logging in or use a different email.', 'error');
+                } else if (signupError.code === 'auth/weak-password') {
+                    showToast('Password is too weak. Use at least 6 characters.', 'error');
+                } else {
+                    showToast('Signup error: ' + signupError.message, 'error');
+                }
+            }
+        } else if (error.code === 'auth/wrong-password') {
+            showToast('Incorrect password. Please try again.', 'error');
+        } else if (error.code === 'auth/invalid-email') {
+            showToast('Invalid email format', 'error');
+        } else if (error.code === 'auth/too-many-requests') {
+            showToast('Too many failed attempts. Please try again later.', 'error');
         } else {
             showToast('Login error: ' + error.message, 'error');
         }
