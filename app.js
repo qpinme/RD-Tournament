@@ -1,27 +1,4 @@
 // ============================================
-// FIREBASE CONFIGURATION
-// ============================================
-// REPLACE THIS WITH YOUR FIREBASE CONFIG FROM FIREBASE CONSOLE
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyB1zUvkLhY--wd3QjjMI3_hn6d1iWqKmIc",
-  authDomain: "rd-tournament-d7257.firebaseapp.com",
-  databaseURL: "https://rd-tournament-d7257-default-rtdb.firebaseio.com",
-  projectId: "rd-tournament-d7257",
-  storageBucket: "rd-tournament-d7257.firebasestorage.app",
-  messagingSenderId: "44554845474",
-  appId: "1:44554845474:web:2569c71c0f3261fbbb397b"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-
-// ============================================
 // ORGANIZER EMAIL WHITELIST
 // ============================================
 // ONLY THESE EMAILS CAN ACCESS TOURNAMENT SETUP
@@ -36,6 +13,19 @@ const AUTHORIZED_ORGANIZERS = [
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 import { getDatabase, ref, set, get, push, remove, onValue, update, query, orderByChild, equalTo } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+
+// ============================================
+// FIREBASE CONFIGURATION
+// ============================================
+const firebaseConfig = {
+  apiKey: "AIzaSyB1zUvkLhY--wd3QjjMI3_hn6d1iWqKmIc",
+  authDomain: "rd-tournament-d7257.firebaseapp.com",
+  databaseURL: "https://rd-tournament-d7257-default-rtdb.firebaseio.com",
+  projectId: "rd-tournament-d7257",
+  storageBucket: "rd-tournament-d7257.firebasestorage.app",
+  messagingSenderId: "44554845474",
+  appId: "1:44554845474:web:2569c71c0f3261fbbb397b"
+};
 
 let app, auth, database;
 let currentUser = null;
@@ -1111,79 +1101,6 @@ function addCaptainFormToSetup() {
             showToast('You must have at least one captain', 'error');
         }
     });
-}
-
-async function handleSetupSubmit(e) {
-    e.preventDefault();
-    
-    const submitBtn = document.getElementById('submit-setup-btn');
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Setting up...';
-    
-    try {
-        const captainForms = document.querySelectorAll('.captain-form');
-        
-        for (const form of captainForms) {
-            const leagueId = form.querySelector('.captain-league').value;
-            const teamName = form.querySelector('.captain-team').value;
-            const captainName = form.querySelector('.captain-name').value;
-            const captainEmail = form.querySelector('.captain-email').value;
-            const captainPhone = form.querySelector('.captain-phone').value;
-            const captainPassword = form.querySelector('.captain-password').value;
-            
-            // Create team
-            const teamRef = push(ref(database, 'teams'));
-            await set(teamRef, {
-                name: teamName,
-                leagueId: leagueId,
-                captain: {
-                    name: captainName,
-                    email: captainEmail,
-                    phone: captainPhone
-                },
-                players: {},
-                createdAt: new Date().toISOString()
-            });
-            
-            // Create captain record
-            const captainRef = push(ref(database, 'captains'));
-            await set(captainRef, {
-                name: captainName,
-                email: captainEmail,
-                phone: captainPhone,
-                teamId: teamRef.key,
-                leagueId: leagueId,
-                teamName: teamName
-            });
-            
-            // Create captain user account
-            try {
-                const captainUserCredential = await createUserWithEmailAndPassword(auth, captainEmail, captainPassword);
-                await set(ref(database, `users/${captainUserCredential.user.uid}`), {
-                    email: captainEmail,
-                    role: 'captain',
-                    teamId: teamRef.key,
-                    captainId: captainRef.key
-                });
-            } catch (error) {
-                if (error.code !== 'auth/email-already-in-use') {
-                    console.error('Error creating captain account:', error);
-                }
-                // Continue with other captains even if one fails
-            }
-        }
-        
-        showToast('Setup complete! Showing dashboard...', 'success');
-        setTimeout(() => {
-            showOrganizerDashboard();
-        }, 1500);
-        
-    } catch (error) {
-        console.error('Setup error:', error);
-        showToast('Setup failed: ' + error.message, 'error');
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Complete Setup';
-    }
 }
 
 async function showOrganizerDashboard() {
