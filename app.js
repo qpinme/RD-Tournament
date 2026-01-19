@@ -457,6 +457,12 @@ async function showCaptainView() {
     const teamData = teamSnapshot.val();
     const players = teamData.players || {};
     
+    // Check if captain is already registered as a player
+    const captainEmail = teamData.captain.email.toLowerCase();
+    const captainAsPlayer = Object.entries(players).find(([_, p]) => 
+        p.email.toLowerCase() === captainEmail
+    );
+    
     document.getElementById('captain-view').innerHTML = `
         <div class="space-y-4 sm:space-y-6 fade-in">
             <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6">
@@ -465,6 +471,33 @@ async function showCaptainView() {
                 <p class="text-xs sm:text-sm text-gray-500 mt-1">
                     ${getLeagueName(teamData.leagueId)}
                 </p>
+                
+                ${!captainAsPlayer ? `
+                    <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p class="text-sm text-gray-700 mb-3">
+                            ⚠️ <strong>Captain:</strong> You're not registered as a player yet! 
+                            You need to sign the waiver and select lunch preference to play.
+                        </p>
+                        <button id="register-captain-btn" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 text-sm">
+                            Register Myself as Player
+                        </button>
+                    </div>
+                ` : captainAsPlayer[1].waiverSigned ? `
+                    <div class="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <p class="text-sm text-green-800">
+                            ✓ You're registered as a player | Lunch: ${captainAsPlayer[1].lunchChoice === 'veg' ? 'Veg' : 'Non-Veg'}
+                        </p>
+                    </div>
+                ` : `
+                    <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p class="text-sm text-yellow-800">
+                            ⚠️ You're added as a player but haven't signed the waiver yet!
+                        </p>
+                        <button class="complete-registration-btn bg-yellow-600 text-white px-3 py-2 rounded-lg hover:bg-yellow-700 text-sm mt-2" data-player-id="${captainAsPlayer[0]}">
+                            Complete Registration
+                        </button>
+                    </div>
+                `}
             </div>
 
             <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6">
@@ -529,6 +562,63 @@ async function showCaptainView() {
     
     // Attach event listeners
     document.getElementById('add-player-btn').addEventListener('click', () => showAddPlayerModal(userTeamId));
+    
+    // Captain self-registration button
+    const registerCaptainBtn = document.getElementById('register-captain-btn');
+    if (registerCaptainBtn) {
+        registerCaptainBtn.addEventListener('click', async () => {
+            const playerData = {
+                name: teamData.captain.name,
+                email: teamData.captain.email,
+                phone: teamData.captain.phone,
+                waiverSigned: false,
+                lunchChoice: null,
+                addedAt: new Date().toISOString()
+            };
+            
+            try {
+                const playerRef = push(ref(database, `teams/${userTeamId}/players`));
+                await set(playerRef, playerData);
+                
+                // Generate the registration link
+                const link = `${window.location.origin}${window.location.pathname}?player=${playerRef.key}`;
+                
+                showToast('You have been added as a player!', 'success');
+                
+                // Show modal with link
+                const modal = document.createElement('div');
+                modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+                modal.innerHTML = `
+                    <div class="bg-white rounded-lg max-w-md w-full p-6">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4">Complete Your Registration</h3>
+                        <p class="text-gray-700 mb-4">Click the button below to complete your registration (sign waiver & select lunch):</p>
+                        <a href="${link}" class="block w-full bg-orange-500 text-white py-3 rounded-lg text-center hover:bg-orange-600 mb-3">
+                            Complete Registration Now
+                        </a>
+                        <button class="close-modal w-full bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400">
+                            I'll Do It Later
+                        </button>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                modal.querySelector('.close-modal').addEventListener('click', () => {
+                    modal.remove();
+                    showCaptainView();
+                });
+            } catch (error) {
+                showToast('Error adding you as player: ' + error.message, 'error');
+            }
+        });
+    }
+    
+    // Complete registration button (if captain added but not signed waiver)
+    document.querySelectorAll('.complete-registration-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const playerId = e.target.dataset.playerId;
+            const link = `${window.location.origin}${window.location.pathname}?player=${playerId}`;
+            window.location.href = link;
+        });
+    });
     
     document.querySelectorAll('.share-whatsapp').forEach(btn => {
         btn.addEventListener('click', (e) => {
