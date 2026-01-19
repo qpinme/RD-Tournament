@@ -39,9 +39,30 @@ function isFirebaseConfigured() {
 }
 
 // Check if user is authorized organizer
-function isAuthorizedOrganizer(email) {
-    return AUTHORIZED_ORGANIZERS.map(e => e.toLowerCase()).includes(email.toLowerCase());
+async function isAuthorizedOrganizer(email) {
+    // Check hardcoded list first
+    if (AUTHORIZED_ORGANIZERS.map(e => e.toLowerCase()).includes(email.toLowerCase())) {
+        return true;
+    }
+    
+    // Check database for dynamically added organizers
+    try {
+        const organizersRef = ref(database, 'organizers');
+        const organizersSnapshot = await get(organizersRef);
+        
+        if (organizersSnapshot.exists()) {
+            const organizers = organizersSnapshot.val();
+            return Object.values(organizers).some(org => 
+                org.email.toLowerCase() === email.toLowerCase()
+            );
+        }
+    } catch (error) {
+        console.error('Error checking organizer status:', error);
+    }
+    
+    return false;
 }
+
 
 function askForRole() {
     return new Promise((resolve) => {
@@ -173,7 +194,7 @@ async function handleAuthUser(user) {
         console.log('🔍 Debug - User exists in DB:', userSnapshot.exists());
         
         // Check if user is both organizer and captain
-        const isOrganizer = isAuthorizedOrganizer(user.email);
+        const isOrganizer = await isAuthorizedOrganizer(user.email);
         const captainQuery = query(ref(database, 'captains'), orderByChild('email'), equalTo(user.email));
         const captainSnapshot = await get(captainQuery);
         const isCaptain = captainSnapshot.exists();
@@ -1067,6 +1088,10 @@ async function showPlayerView(playerId) {
                     </div>
                     
                     <p class="text-sm text-gray-500 mt-4">See you at the tournament on January 24, 2026!</p>
+                    
+                    <button onclick="window.location.href='${window.location.origin}${window.location.pathname}'" class="mt-6 bg-orange-500 text-white px-6 py-3 rounded-lg hover:bg-orange-600 font-semibold">
+                        Return to Main Page
+                    </button>
                 </div>
             ` : `
                 <div class="bg-white rounded-lg shadow-xl p-6 sm:p-8">
@@ -1191,33 +1216,47 @@ async function showPlayerView(playerId) {
         canvas.height = 150;
         
         // Drawing functions
+        function getCoordinates(e) {
+            const rect = canvas.getBoundingClientRect();
+            if (e.touches && e.touches.length > 0) {
+                // Touch event
+                return {
+                    x: e.touches[0].clientX - rect.left,
+                    y: e.touches[0].clientY - rect.top
+                };
+            } else {
+                // Mouse event
+                return {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top
+                };
+            }
+        }
+        
         function startDrawing(e) {
             isDrawing = true;
-            const rect = canvas.getBoundingClientRect();
-            const x = (e.clientX || e.touches[0].clientX) - rect.left;
-            const y = (e.clientY || e.touches[0].clientY) - rect.top;
+            const coords = getCoordinates(e);
             ctx.beginPath();
-            ctx.moveTo(x, y);
+            ctx.moveTo(coords.x, coords.y);
+            hasSignature = true; // Mark as having signature immediately
         }
         
         function draw(e) {
             if (!isDrawing) return;
             e.preventDefault();
-            hasSignature = true;
             
-            const rect = canvas.getBoundingClientRect();
-            const x = (e.clientX || e.touches[0].clientX) - rect.left;
-            const y = (e.clientY || e.touches[0].clientY) - rect.top;
-            
-            ctx.lineTo(x, y);
+            const coords = getCoordinates(e);
+            ctx.lineTo(coords.x, coords.y);
             ctx.strokeStyle = '#000';
             ctx.lineWidth = 2;
             ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
             ctx.stroke();
         }
         
         function stopDrawing() {
             isDrawing = false;
+            ctx.beginPath(); // Reset path for next drawing
         }
         
         // Mouse events
@@ -1226,10 +1265,19 @@ async function showPlayerView(playerId) {
         canvas.addEventListener('mouseup', stopDrawing);
         canvas.addEventListener('mouseout', stopDrawing);
         
-        // Touch events
-        canvas.addEventListener('touchstart', startDrawing);
-        canvas.addEventListener('touchmove', draw);
-        canvas.addEventListener('touchend', stopDrawing);
+        // Touch events (with preventDefault to avoid conflicts)
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startDrawing(e);
+        });
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            draw(e);
+        });
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            stopDrawing();
+        });
         
         // Clear signature button
         document.getElementById('clear-signature').addEventListener('click', () => {
@@ -1601,6 +1649,9 @@ async function showOrganizerDashboard() {
                         <p class="text-sm sm:text-base text-gray-600">Republic Day Tournament 2026 - Overview</p>
                     </div>
                     <div class="flex flex-wrap gap-2">
+                        <button id="manage-organizers-btn" class="bg-red-500 text-white px-3 py-2 rounded-lg hover:bg-red-600 text-xs sm:text-sm whitespace-nowrap">
+                            👥 Manage Organizers
+                        </button>
                         <button id="message-captains-btn" class="bg-blue-500 text-white px-3 py-2 rounded-lg hover:bg-blue-600 text-xs sm:text-sm whitespace-nowrap">
                             📱 Message All Captains
                         </button>
@@ -1750,6 +1801,14 @@ async function showOrganizerDashboard() {
         </div>
     `;
     
+    // Manage Organizers button
+    const manageOrganizersBtn = document.getElementById('manage-organizers-btn');
+    if (manageOrganizersBtn) {
+        manageOrganizersBtn.addEventListener('click', () => {
+            showManageOrganizersModal();
+        });
+    }
+    
     // Message All Captains button
     const messageCaptainsBtn = document.getElementById('message-captains-btn');
     if (messageCaptainsBtn) {
@@ -1798,6 +1857,125 @@ async function showOrganizerDashboard() {
             const team = teams[teamId];
             if (confirm(`Are you sure you want to delete "${team.name}"? This will also delete all players and cannot be undone.`)) {
                 await deleteTeam(teamId);
+            }
+        });
+    });
+}
+
+// ============================================
+// ORGANIZER MANAGEMENT FUNCTIONS
+// ============================================
+
+async function showManageOrganizersModal() {
+    // Get current organizers from database
+    const organizersRef = ref(database, 'organizers');
+    const organizersSnapshot = await get(organizersRef);
+    const organizers = organizersSnapshot.exists() ? organizersSnapshot.val() : {};
+    
+    // Also include the hardcoded ones
+    const allOrganizers = new Set([...AUTHORIZED_ORGANIZERS]);
+    Object.values(organizers).forEach(org => allOrganizers.add(org.email));
+    
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+    modal.innerHTML = `
+        <div class="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Manage Organizers</h3>
+            
+            <div class="mb-6">
+                <p class="text-sm text-gray-600 mb-4">
+                    Add or remove organizer email addresses. Organizers have full access to manage teams, players, and settings.
+                </p>
+                
+                <form id="add-organizer-form" class="flex gap-2">
+                    <input 
+                        type="email" 
+                        id="new-organizer-email" 
+                        class="flex-1 px-3 py-2 border border-gray-300 rounded-lg" 
+                        placeholder="organizer@example.com"
+                        required
+                    >
+                    <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 whitespace-nowrap">
+                        + Add
+                    </button>
+                </form>
+            </div>
+            
+            <div class="space-y-2 mb-6">
+                <h4 class="font-semibold text-gray-700 mb-2">Current Organizers (${allOrganizers.size})</h4>
+                ${Array.from(allOrganizers).map((email, index) => {
+                    const isHardcoded = AUTHORIZED_ORGANIZERS.includes(email);
+                    const organizerId = Object.keys(organizers).find(key => organizers[key].email === email);
+                    return `
+                        <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                            <div>
+                                <span class="text-gray-800">${email}</span>
+                                ${isHardcoded ? '<span class="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Default</span>' : ''}
+                            </div>
+                            ${!isHardcoded && organizerId ? `
+                                <button class="delete-organizer bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600" data-organizer-id="${organizerId}">
+                                    Delete
+                                </button>
+                            ` : ''}
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+            
+            <div class="flex gap-3">
+                <button class="close-modal flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400">
+                    Close
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    modal.querySelector('.close-modal').addEventListener('click', () => modal.remove());
+    
+    // Add organizer form
+    modal.querySelector('#add-organizer-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const email = document.getElementById('new-organizer-email').value.trim().toLowerCase();
+        
+        if (allOrganizers.has(email)) {
+            showToast('This email is already an organizer', 'error');
+            return;
+        }
+        
+        try {
+            const newOrganizerRef = push(ref(database, 'organizers'));
+            await set(newOrganizerRef, {
+                email: email,
+                addedBy: currentUser.email,
+                addedAt: new Date().toISOString()
+            });
+            
+            showToast('Organizer added successfully!', 'success');
+            modal.remove();
+            showManageOrganizersModal(); // Refresh the modal
+        } catch (error) {
+            showToast('Error adding organizer: ' + error.message, 'error');
+        }
+    });
+    
+    // Delete organizer buttons
+    modal.querySelectorAll('.delete-organizer').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const organizerId = e.target.dataset.organizerId;
+            const email = organizers[organizerId].email;
+            
+            if (confirm(`Remove ${email} as an organizer?`)) {
+                try {
+                    await remove(ref(database, `organizers/${organizerId}`));
+                    showToast('Organizer removed successfully', 'success');
+                    modal.remove();
+                    showManageOrganizersModal(); // Refresh the modal
+                } catch (error) {
+                    showToast('Error removing organizer: ' + error.message, 'error');
+                }
             }
         });
     });
