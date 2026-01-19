@@ -315,12 +315,6 @@ function showLoginView() {
                     </button>
                 </form>
 
-                <div class="mt-6 text-center">
-                    <button id="show-setup-btn" class="text-sm text-orange-600 hover:text-orange-700 underline">
-                        First Time Setup (Organizers Only)
-                    </button>
-                </div>
-
                 <div class="mt-6 p-4 bg-blue-50 rounded-lg text-sm text-gray-700">
                     <p class="font-semibold mb-2">For Captains:</p>
                     <p>Use the email you registered with or sign in with Google</p>
@@ -332,8 +326,6 @@ function showLoginView() {
     // Attach event listeners
     document.getElementById('google-login-btn').addEventListener('click', handleGoogleLogin);
     document.getElementById('email-login-form').addEventListener('submit', handleEmailLogin);
-    document.getElementById('show-setup-btn').addEventListener('click', showSetupModal);
-    document.getElementById('logout-btn').addEventListener('click', handleLogout);
 }
 
 async function handleGoogleLogin() {
@@ -1054,11 +1046,26 @@ async function showPlayerView(playerId) {
                     <h2 class="text-xl sm:text-2xl font-bold text-green-600 mb-4">Registration Complete!</h2>
                     <p class="text-gray-700 mb-2">Thank you, ${playerData.name}!</p>
                     <p class="text-gray-600 mb-4">Your registration for ${teamData.name} has been submitted.</p>
-                    <div class="bg-green-50 p-4 rounded-lg">
-                        <p class="text-sm text-gray-700">
-                            <strong>Lunch Choice:</strong> ${getLunchChoiceDisplay(playerData.lunchChoice)}
-                        </p>
+                    
+                    <div class="space-y-3">
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <p class="text-sm text-gray-700">
+                                <strong>Lunch Choice:</strong> ${getLunchChoiceDisplay(playerData.lunchChoice)}
+                            </p>
+                        </div>
+                        
+                        ${playerData.waiverFullName ? `
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <p class="text-sm text-gray-700 mb-2">
+                                    <strong>Signed by:</strong> ${playerData.waiverFullName}
+                                </p>
+                                ${playerData.waiverSignature ? `
+                                    <img src="${playerData.waiverSignature}" alt="Signature" class="mx-auto border border-gray-300 rounded" style="max-width: 300px; height: auto;">
+                                ` : ''}
+                            </div>
+                        ` : ''}
                     </div>
+                    
                     <p class="text-sm text-gray-500 mt-4">See you at the tournament on January 24, 2026!</p>
                 </div>
             ` : `
@@ -1091,14 +1098,33 @@ async function showPlayerView(playerId) {
                                     <li>I, for myself and on behalf of my heirs, assigns, personal representatives and next of kin, HEREBY RELEASE AND HOLD HARMLESS <strong>Republic Day Volleyball and Throwball Tournament, Katy Whackers Club, Empower Her foundation & Faith West Incorporated</strong> their officers, officials, agents, and/or employees, other participants, sponsoring agencies, sponsors, advertisers, and if applicable, owners and lessors of premises used to conduct the event ("RELEASEES"), WITH RESPECT TO ANY AND ALL INJURY, ILLNESS, DISABILITY, DEATH, or loss or damage to person or property, WHETHER ARISING FROM THE NEGLIGENCE OF THE RELEASEES OR OTHERWISE, to the fullest extent permitted by law.</li>
                                 </ol>
                                 <p class="mt-4 font-semibold">I HAVE READ THIS RELEASE OF LIABILITY AND ASSUMPTION OF RISK AGREEMENT, FULLY UNDERSTAND ITS TERMS, UNDERSTAND THAT I HAVE GIVEN UP SUBSTANTIAL RIGHTS BY SIGNING IT, AND SIGN IT FREELY AND VOLUNTARILY WITHOUT ANY INDUCEMENT.</p>
-                                <p class="mt-3 text-sm"><strong>Participant:</strong> ${playerData.name} (${playerData.email})</p>
-                                <p class="mt-2 font-semibold">By checking the box below and submitting this form, I electronically sign this waiver with my authenticated identity.</p>
+                            </div>
+                            
+                            <div class="mt-6 space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Full Legal Name *</label>
+                                    <input type="text" id="full-name" class="w-full px-3 py-2 border-2 border-gray-300 rounded-lg" placeholder="Enter your full legal name" required>
+                                    <p class="text-xs text-gray-500 mt-1">This must match your legal identification</p>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Signature *</label>
+                                    <div class="border-2 border-gray-300 rounded-lg bg-white">
+                                        <canvas id="signature-canvas" class="w-full touch-none" style="height: 150px;"></canvas>
+                                    </div>
+                                    <div class="flex justify-between items-center mt-2">
+                                        <p class="text-xs text-gray-500">Sign with your finger or mouse</p>
+                                        <button type="button" id="clear-signature" class="text-xs text-red-600 hover:text-red-700 underline">
+                                            Clear Signature
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
 
-                            <label class="flex items-start gap-3 cursor-pointer">
+                            <label class="flex items-start gap-3 cursor-pointer mt-6">
                                 <input type="checkbox" id="waiver-checkbox" class="mt-1 w-5 h-5 text-orange-500" required>
                                 <span class="text-sm text-gray-700">
-                                    I, ${playerData.name}, have read and agree to the waiver terms above. I understand this is a legally binding electronic signature.
+                                    I certify that the name and signature above are mine. I have read and agree to all waiver terms. I understand this is a legally binding electronic signature.
                                 </span>
                             </label>
                         </div>
@@ -1154,23 +1180,97 @@ async function showPlayerView(playerId) {
     `;
     
     if (!alreadySubmitted) {
+        // Setup signature canvas
+        const canvas = document.getElementById('signature-canvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        let hasSignature = false;
+        
+        // Set canvas size
+        canvas.width = canvas.offsetWidth;
+        canvas.height = 150;
+        
+        // Drawing functions
+        function startDrawing(e) {
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX || e.touches[0].clientX) - rect.left;
+            const y = (e.clientY || e.touches[0].clientY) - rect.top;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+        
+        function draw(e) {
+            if (!isDrawing) return;
+            e.preventDefault();
+            hasSignature = true;
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX || e.touches[0].clientX) - rect.left;
+            const y = (e.clientY || e.touches[0].clientY) - rect.top;
+            
+            ctx.lineTo(x, y);
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+        }
+        
+        function stopDrawing() {
+            isDrawing = false;
+        }
+        
+        // Mouse events
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+        
+        // Touch events
+        canvas.addEventListener('touchstart', startDrawing);
+        canvas.addEventListener('touchmove', draw);
+        canvas.addEventListener('touchend', stopDrawing);
+        
+        // Clear signature button
+        document.getElementById('clear-signature').addEventListener('click', () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            hasSignature = false;
+        });
+        
         document.getElementById('player-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             
+            const fullName = document.getElementById('full-name').value.trim();
             const waiverSigned = document.getElementById('waiver-checkbox').checked;
             const lunchChoice = document.querySelector('input[name="lunch"]:checked').value;
             
+            // Validation
+            if (!fullName) {
+                showToast('Please enter your full legal name', 'error');
+                return;
+            }
+            
+            if (!hasSignature) {
+                showToast('Please sign the waiver form', 'error');
+                return;
+            }
+            
             if (!waiverSigned) {
-                showToast('Please agree to the waiver to continue', 'error');
+                showToast('Please check the agreement box to continue', 'error');
                 return;
             }
             
             try {
+                // Convert signature to base64
+                const signatureData = canvas.toDataURL('image/png');
+                
                 // Record authenticated waiver signature
                 await update(ref(database, `teams/${playerTeamId}/players/${playerId}`), {
                     waiverSigned: true,
                     waiverSignedBy: currentAuthUser.email,
                     waiverSignedAt: new Date().toISOString(),
+                    waiverFullName: fullName,
+                    waiverSignature: signatureData,
                     lunchChoice: lunchChoice,
                     submittedAt: new Date().toISOString()
                 });
