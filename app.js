@@ -228,9 +228,25 @@ async function handleAuthUser(user) {
         
         if (allTeamsSnapshot.exists()) {
             const teams = allTeamsSnapshot.val();
+            const currentEmail = user.email.toLowerCase().trim();
+            
+            console.log('═══════════════════════════════════════');
+            console.log('🔐 AUTH - TEAM DETECTION DEBUG');
+            console.log('═══════════════════════════════════════');
+            console.log('User email:', user.email);
+            console.log('Normalized:', currentEmail);
+            console.log('Total teams:', Object.keys(teams).length);
+            console.log('───────────────────────────────────────');
+            
             Object.entries(teams).forEach(([teamId, team]) => {
-                if (team.captain && team.captain.email && 
-                    team.captain.email.toLowerCase() === user.email.toLowerCase()) {
+                const teamCaptainEmail = team.captain?.email?.toLowerCase().trim() || 'NO EMAIL';
+                const isMatch = team.captain && team.captain.email && teamCaptainEmail === currentEmail;
+                
+                console.log(`Team: ${team.name}`);
+                console.log(`  Captain: ${team.captain?.email || 'MISSING'}`);
+                console.log(`  Match? ${isMatch ? '✅' : '❌'}`);
+                
+                if (isMatch) {
                     captainTeams.push({
                         id: teamId,
                         name: team.name,
@@ -239,6 +255,11 @@ async function handleAuthUser(user) {
                     });
                 }
             });
+            
+            console.log('───────────────────────────────────────');
+            console.log('Teams found:', captainTeams.length);
+            console.log('Teams:', captainTeams.map(t => t.name));
+            console.log('═══════════════════════════════════════');
         }
         
         const isCaptain = captainTeams.length > 0;
@@ -745,16 +766,42 @@ async function showCaptainView() {
     
     if (allTeamsSnapshot.exists() && currentUser) {
         const teams = allTeamsSnapshot.val();
+        const currentEmail = currentUser.email.toLowerCase().trim();
+        
+        console.log('═══════════════════════════════════════');
+        console.log('🔍 TEAM DETECTION DEBUG');
+        console.log('═══════════════════════════════════════');
+        console.log('Current user email:', currentUser.email);
+        console.log('Normalized email:', currentEmail);
+        console.log('Total teams in database:', Object.keys(teams).length);
+        console.log('───────────────────────────────────────');
+        
         Object.entries(teams).forEach(([teamId, team]) => {
-            if (team.captain && team.captain.email && 
-                team.captain.email.toLowerCase() === currentUser.email.toLowerCase()) {
+            const teamCaptainEmail = team.captain?.email?.toLowerCase().trim() || 'NO EMAIL';
+            const isMatch = team.captain && team.captain.email && teamCaptainEmail === currentEmail;
+            
+            console.log(`Team: ${team.name}`);
+            console.log(`  Captain email: ${team.captain?.email || 'MISSING'}`);
+            console.log(`  Normalized: ${teamCaptainEmail}`);
+            console.log(`  Match? ${isMatch ? '✅ YES' : '❌ NO'}`);
+            
+            if (isMatch) {
+                console.log(`  ✅ ADDING TO CAPTAIN'S LIST`);
                 captainTeams.push({
                     id: teamId,
                     name: team.name,
                     leagueId: team.leagueId
                 });
             }
+            console.log('───────────────────────────────────────');
         });
+        
+        console.log('═══════════════════════════════════════');
+        console.log('FINAL RESULTS:');
+        console.log('Teams found:', captainTeams.length);
+        console.log('Team list:', captainTeams.map(t => t.name));
+        console.log('Dropdown will show?', captainTeams.length > 1 ? 'YES ✅' : 'NO ❌');
+        console.log('═══════════════════════════════════════');
     }
     
     // Check if captain is already registered as a player
