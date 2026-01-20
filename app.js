@@ -34,6 +34,27 @@ let userRole = null;
 let userTeamId = null;
 let userTeamIds = []; // Array to store all team IDs for captains with multiple teams
 
+// Expose to window for debugging
+if (typeof window !== 'undefined') {
+    window.debugTeamInfo = () => {
+        console.log('═══════════════════════════════════════');
+        console.log('DEBUG INFO:');
+        console.log('Current User:', currentUser?.email);
+        console.log('User Role:', userRole);
+        console.log('Current Team ID:', userTeamId);
+        console.log('All Team IDs:', userTeamIds);
+        console.log('Number of Teams:', userTeamIds.length);
+        console.log('═══════════════════════════════════════');
+        return {
+            email: currentUser?.email,
+            role: userRole,
+            currentTeamId: userTeamId,
+            allTeamIds: userTeamIds,
+            teamCount: userTeamIds.length
+        };
+    };
+}
+
 // Check if Firebase is configured
 function isFirebaseConfigured() {
     return !firebaseConfig.apiKey.includes('YOUR_');
