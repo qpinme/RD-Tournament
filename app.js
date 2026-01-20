@@ -32,6 +32,7 @@ let app, auth, database;
 let currentUser = null;
 let userRole = null;
 let userTeamId = null;
+let userTeamIds = []; // Array to store all team IDs for captains with multiple teams
 
 // Check if Firebase is configured
 function isFirebaseConfigured() {
@@ -79,10 +80,10 @@ function askForRole() {
                 <h3 class="text-xl font-bold text-gray-800 mb-4">Choose Your Role</h3>
                 <p class="text-gray-600 mb-6">You are registered as both an organizer and a team captain. Which role would you like to use?</p>
                 <div class="flex gap-3">
-                    <button class="choose-organizer flex-1 bg-pink-200 text-gray-800 py-3 rounded-lg hover:bg-pink-300">
+                    <button class="choose-organizer flex-1 bg-blue-100 text-gray-800 py-3 rounded-lg hover:bg-blue-200">
                         Organizer Dashboard
                     </button>
-                    <button class="choose-captain flex-1 bg-sky-200 text-gray-800 py-3 rounded-lg hover:bg-sky-300">
+                    <button class="choose-captain flex-1 bg-cyan-100 text-gray-800 py-3 rounded-lg hover:bg-cyan-200">
                         My Team (Captain)
                     </button>
                 </div>
@@ -112,7 +113,7 @@ function showRoleSwitcher(currentRole, captainSnapshot) {
     
     const switcher = document.createElement('button');
     switcher.id = 'role-switcher';
-    switcher.className = 'ml-3 bg-purple-200 text-gray-800 px-3 py-1 rounded text-sm hover:bg-purple-300';
+    switcher.className = 'ml-3 bg-indigo-100 text-gray-800 px-3 py-1 rounded text-sm hover:bg-indigo-200';
     switcher.textContent = currentRole === 'organizer' ? '🏐 Switch to Captain' : '⚙️ Switch to Organizer';
     
     switcher.addEventListener('click', async () => {
@@ -219,24 +220,53 @@ async function handleAuthUser(user) {
         
         // Check if user is both organizer and captain
         const isOrganizer = await isAuthorizedOrganizer(user.email);
-        const captainQuery = query(ref(database, 'captains'), orderByChild('email'), equalTo(user.email));
-        const captainSnapshot = await get(captainQuery);
-        const isCaptain = captainSnapshot.exists();
+        
+        // Find ALL teams where this user is captain
+        const allTeamsRef = ref(database, 'teams');
+        const allTeamsSnapshot = await get(allTeamsRef);
+        const captainTeams = [];
+        
+        if (allTeamsSnapshot.exists()) {
+            const teams = allTeamsSnapshot.val();
+            Object.entries(teams).forEach(([teamId, team]) => {
+                if (team.captain && team.captain.email && 
+                    team.captain.email.toLowerCase() === user.email.toLowerCase()) {
+                    captainTeams.push({
+                        id: teamId,
+                        name: team.name,
+                        leagueId: team.leagueId,
+                        captain: team.captain
+                    });
+                }
+            });
+        }
+        
+        const isCaptain = captainTeams.length > 0;
+        userTeamIds = captainTeams.map(t => t.id);
         
         console.log('🔍 Debug - Is organizer:', isOrganizer);
         console.log('🔍 Debug - Is captain:', isCaptain);
+        console.log('🔍 Debug - Captain teams:', captainTeams);
         
         if (userSnapshot.exists()) {
             const userData = userSnapshot.val();
             userRole = userData.role;
-            userTeamId = userData.teamId;
+            
+            // If user is captain and has team info, verify it's valid
+            if (userRole === 'captain' && userData.teamId) {
+                userTeamId = userData.teamId;
+            } else if (userRole === 'captain' && captainTeams.length > 0) {
+                // Set to first team if no team ID stored
+                userTeamId = captainTeams[0].id;
+            }
             
             console.log('🔍 Debug - User role:', userRole);
             console.log('🔍 Debug - Team ID:', userTeamId);
+            console.log('🔍 Debug - All Team IDs:', userTeamIds);
             
             // If user is both organizer and captain, show role switcher
             if (isOrganizer && isCaptain) {
-                showRoleSwitcher(userRole, captainSnapshot);
+                showRoleSwitcher(userRole, captainTeams);
             }
             
             if (userRole === 'organizer') {
@@ -248,10 +278,7 @@ async function handleAuthUser(user) {
             console.log('🔍 Debug - New user, checking registration...');
             // New user - check if they're a registered captain or authorized organizer
             if (isCaptain) {
-                const captainId = Object.keys(captainSnapshot.val())[0];
-                const captainData = captainSnapshot.val()[captainId];
-                
-                console.log('🔍 Debug - Captain data:', captainData);
+                console.log('🔍 Debug - Captain data:', captainTeams);
                 
                 // If they're also an organizer, ask which role they want
                 if (isOrganizer) {
@@ -268,25 +295,23 @@ async function handleAuthUser(user) {
                         await set(userRef, {
                             email: user.email,
                             role: 'captain',
-                            teamId: captainData.teamId,
-                            captainId: captainId
+                            teamId: captainTeams[0].id // Default to first team
                         });
                         userRole = 'captain';
-                        userTeamId = captainData.teamId;
+                        userTeamId = captainTeams[0].id;
                         await showCaptainView();
                     }
-                    showRoleSwitcher(userRole, captainSnapshot);
+                    showRoleSwitcher(userRole, captainTeams);
                 } else {
                     console.log('🔍 Debug - Creating captain user record...');
                     await set(userRef, {
                         email: user.email,
                         role: 'captain',
-                        teamId: captainData.teamId,
-                        captainId: captainId
+                        teamId: captainTeams[0].id // Default to first team
                     });
                     
                     userRole = 'captain';
-                    userTeamId = captainData.teamId;
+                    userTeamId = captainTeams[0].id;
                     await showCaptainView();
                 }
             } else if (isOrganizer) {
@@ -353,11 +378,11 @@ function showWhatsAppBrowserError() {
                 </div>
 
                 <div class="space-y-3">
-                    <button onclick="navigator.clipboard.writeText('${currentUrl}').then(() => alert('Link copied! Now paste it in your browser.'))" class="w-full bg-pink-200 text-gray-800 py-3 rounded-lg font-semibold hover:bg-pink-300 transition">
+                    <button onclick="navigator.clipboard.writeText('${currentUrl}').then(() => alert('Link copied! Now paste it in your browser.'))" class="w-full bg-blue-100 text-gray-800 py-3 rounded-lg font-semibold hover:bg-blue-200 transition">
                         📋 Copy Link
                     </button>
                     
-                    <button onclick="window.location.href = '${currentUrl}'" class="w-full bg-sky-200 text-gray-800 py-3 rounded-lg font-semibold hover:bg-sky-300 transition">
+                    <button onclick="window.location.href = '${currentUrl}'" class="w-full bg-cyan-100 text-gray-800 py-3 rounded-lg font-semibold hover:bg-cyan-200 transition">
                         🔄 Try Opening Anyway
                     </button>
                 </div>
@@ -401,7 +426,7 @@ function showLoginView() {
                         <p class="text-xs text-gray-500 mt-1">First time? Create a new password (min 6 characters)</p>
                     </div>
 
-                    <button type="submit" class="w-full bg-pink-200 text-gray-800 py-3 rounded-lg font-semibold hover:bg-pink-300 transition">
+                    <button type="submit" class="w-full bg-blue-100 text-gray-800 py-3 rounded-lg font-semibold hover:bg-blue-200 transition">
                         Login / Sign Up
                     </button>
                 </form>
@@ -538,12 +563,12 @@ function showSetupModal() {
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <h4 class="font-bold text-gray-800 mb-4">2. Register Team Captains</h4>
                         <div id="captains-container" class="space-y-4"></div>
-                        <button type="button" id="add-captain-btn" class="mt-3 w-full bg-emerald-200 text-gray-800 py-2 rounded-lg hover:bg-emerald-300">
+                        <button type="button" id="add-captain-btn" class="mt-3 w-full bg-teal-100 text-gray-800 py-2 rounded-lg hover:bg-teal-200">
                             + Add Captain
                         </button>
                     </div>
 
-                    <button type="submit" class="w-full bg-pink-200 text-gray-800 py-3 rounded-lg font-semibold hover:bg-pink-300">
+                    <button type="submit" class="w-full bg-blue-100 text-gray-800 py-3 rounded-lg font-semibold hover:bg-blue-200">
                         Complete Setup
                     </button>
                 </form>
@@ -713,6 +738,25 @@ async function showCaptainView() {
     const teamData = teamSnapshot.val();
     const players = teamData.players || {};
     
+    // Get all captain teams for the selector
+    const allTeamsRef = ref(database, 'teams');
+    const allTeamsSnapshot = await get(allTeamsRef);
+    const captainTeams = [];
+    
+    if (allTeamsSnapshot.exists() && currentUser) {
+        const teams = allTeamsSnapshot.val();
+        Object.entries(teams).forEach(([teamId, team]) => {
+            if (team.captain && team.captain.email && 
+                team.captain.email.toLowerCase() === currentUser.email.toLowerCase()) {
+                captainTeams.push({
+                    id: teamId,
+                    name: team.name,
+                    leagueId: team.leagueId
+                });
+            }
+        });
+    }
+    
     // Check if captain is already registered as a player
     const captainEmail = teamData.captain && teamData.captain.email ? teamData.captain.email.toLowerCase() : '';
     const captainAsPlayer = Object.entries(players).find(([_, p]) => 
@@ -721,6 +765,27 @@ async function showCaptainView() {
     
     document.getElementById('captain-view').innerHTML = `
         <div class="space-y-4 sm:space-y-6 fade-in">
+            ${captainTeams.length > 1 ? `
+                <div class="bg-gradient-to-r from-blue-100 to-cyan-100 rounded-lg shadow-lg p-4">
+                    <div class="flex items-center justify-between gap-4">
+                        <div class="flex items-center gap-3">
+                            <div class="text-2xl">👥</div>
+                            <div>
+                                <p class="text-xs text-gray-600 font-semibold">You captain ${captainTeams.length} teams!</p>
+                                <p class="text-xs text-gray-500">Select team to manage:</p>
+                            </div>
+                        </div>
+                        <select id="team-selector" class="px-4 py-2 border-2 border-blue-300 rounded-lg bg-white text-gray-800 font-semibold focus:ring-2 focus:ring-blue-500">
+                            ${captainTeams.map(team => `
+                                <option value="${team.id}" ${team.id === userTeamId ? 'selected' : ''}>
+                                    ${team.name} (${getLeagueName(team.leagueId).replace(' Volleyball', '').replace(' Throwball', '')})
+                                </option>
+                            `).join('')}
+                        </select>
+                    </div>
+                </div>
+            ` : ''}
+            
             <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6">
                 <h2 class="text-xl sm:text-2xl font-bold text-gray-800 mb-2">${teamData.name}</h2>
                 <p class="text-sm sm:text-base text-gray-600">${teamData.captain.name}</p>
@@ -734,7 +799,7 @@ async function showCaptainView() {
                             ⚠️ <strong>Captain:</strong> You're not registered as a player yet! 
                             You need to sign the waiver and select lunch preference to play.
                         </p>
-                        <button id="register-captain-btn" class="bg-sky-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-sky-300 text-sm">
+                        <button id="register-captain-btn" class="bg-cyan-100 text-gray-800 px-4 py-2 rounded-lg hover:bg-cyan-200 text-sm">
                             Register Myself as Player
                         </button>
                     </div>
@@ -749,7 +814,7 @@ async function showCaptainView() {
                         <p class="text-sm text-yellow-800">
                             ⚠️ You're added as a player but haven't signed the waiver yet!
                         </p>
-                        <button class="complete-registration-btn bg-amber-300 text-gray-800 px-3 py-2 rounded-lg hover:bg-amber-400 text-sm mt-2" data-player-id="${captainAsPlayer[0]}">
+                        <button class="complete-registration-btn bg-yellow-100 text-gray-800 px-3 py-2 rounded-lg hover:bg-yellow-200 text-sm mt-2" data-player-id="${captainAsPlayer[0]}">
                             Complete Registration
                         </button>
                     </div>
@@ -764,11 +829,11 @@ async function showCaptainView() {
                     </div>
                     <div class="flex gap-2">
                         ${Object.keys(players).length > 0 ? `
-                            <button id="message-players-btn" class="bg-purple-200 text-gray-800 px-3 py-2 rounded-lg hover:bg-purple-300 text-xs sm:text-sm whitespace-nowrap">
+                            <button id="message-players-btn" class="bg-indigo-100 text-gray-800 px-3 py-2 rounded-lg hover:bg-indigo-200 text-xs sm:text-sm whitespace-nowrap">
                                 📱 Message Players
                             </button>
                         ` : ''}
-                        <button id="add-player-btn" class="bg-pink-200 text-gray-800 px-3 py-2 sm:px-4 sm:py-2 rounded-lg hover:bg-pink-300 text-sm sm:text-base whitespace-nowrap">
+                        <button id="add-player-btn" class="bg-blue-100 text-gray-800 px-3 py-2 sm:px-4 sm:py-2 rounded-lg hover:bg-blue-200 text-sm sm:text-base whitespace-nowrap">
                             + Add
                         </button>
                     </div>
@@ -813,16 +878,16 @@ async function showCaptainView() {
                                 </div>
 
                                 <div class="flex flex-col gap-2">
-                                    <button class="edit-player bg-sky-200 text-gray-800 px-3 py-1 rounded text-xs sm:text-sm hover:bg-sky-300 whitespace-nowrap" data-player-id="${playerId}">
+                                    <button class="edit-player bg-cyan-100 text-gray-800 px-3 py-1 rounded text-xs sm:text-sm hover:bg-cyan-200 whitespace-nowrap" data-player-id="${playerId}">
                                         ✏️ Edit
                                     </button>
-                                    <button class="share-whatsapp bg-emerald-200 text-gray-800 px-3 py-1 rounded text-xs sm:text-sm hover:bg-emerald-300 whitespace-nowrap" data-player-id="${playerId}" data-player-name="${player.name}" data-player-phone="${player.phone}" data-player-email="${player.email || ''}">
+                                    <button class="share-whatsapp bg-teal-100 text-gray-800 px-3 py-1 rounded text-xs sm:text-sm hover:bg-teal-200 whitespace-nowrap" data-player-id="${playerId}" data-player-name="${player.name}" data-player-phone="${player.phone}" data-player-email="${player.email || ''}">
                                         📱 WhatsApp
                                     </button>
                                     <button class="copy-link bg-gray-300 text-gray-800 px-3 py-1 rounded text-xs sm:text-sm hover:bg-gray-400 whitespace-nowrap" data-player-id="${playerId}">
                                         🔗 Copy Link
                                     </button>
-                                    <button class="remove-player bg-rose-200 text-gray-800 px-3 py-1 rounded text-xs sm:text-sm hover:bg-rose-300 whitespace-nowrap" data-player-id="${playerId}">
+                                    <button class="remove-player bg-red-100 text-gray-800 px-3 py-1 rounded text-xs sm:text-sm hover:bg-red-200 whitespace-nowrap" data-player-id="${playerId}">
                                         🗑️ Remove
                                     </button>
                                 </div>
@@ -834,6 +899,22 @@ async function showCaptainView() {
             </div>
         </div>
     `;
+    
+    // Team selector event listener
+    const teamSelector = document.getElementById('team-selector');
+    if (teamSelector) {
+        teamSelector.addEventListener('change', async (e) => {
+            userTeamId = e.target.value;
+            // Update user's teamId in database
+            if (currentUser) {
+                await update(ref(database, `users/${currentUser.uid}`), {
+                    teamId: userTeamId
+                });
+            }
+            showToast('Switched teams!', 'success');
+            await showCaptainView(); // Reload view with new team
+        });
+    }
     
     // Attach event listeners
     document.getElementById('add-player-btn').addEventListener('click', () => showAddPlayerModal(userTeamId));
@@ -875,7 +956,7 @@ async function showCaptainView() {
                     <div class="bg-white rounded-lg max-w-md w-full p-6">
                         <h3 class="text-xl font-bold text-gray-800 mb-4">Complete Your Registration</h3>
                         <p class="text-gray-700 mb-4">Click the button below to complete your registration (sign waiver & select lunch):</p>
-                        <a href="${link}" class="block w-full bg-pink-200 text-gray-800 py-3 rounded-lg text-center hover:bg-pink-300 mb-3">
+                        <a href="${link}" class="block w-full bg-blue-100 text-gray-800 py-3 rounded-lg text-center hover:bg-blue-200 mb-3">
                             Complete Registration Now
                         </a>
                         <button class="close-modal w-full bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400">
@@ -964,7 +1045,7 @@ function showAddPlayerModal(teamId) {
                     <button type="button" id="cancel-add" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400">
                         Cancel
                     </button>
-                    <button type="submit" class="flex-1 bg-pink-200 text-gray-800 py-2 rounded-lg hover:bg-pink-300">
+                    <button type="submit" class="flex-1 bg-blue-100 text-gray-800 py-2 rounded-lg hover:bg-blue-200">
                         Add Player
                     </button>
                 </div>
@@ -1027,7 +1108,7 @@ function showEditPlayerModal(teamId, playerId, playerData) {
                     <button type="button" id="cancel-edit" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 font-semibold">
                         Cancel
                     </button>
-                    <button type="submit" class="flex-1 bg-sky-200 text-gray-800 py-2 rounded-lg hover:bg-sky-300 font-semibold">
+                    <button type="submit" class="flex-1 bg-cyan-100 text-gray-800 py-2 rounded-lg hover:bg-cyan-200 font-semibold">
                         Save Changes
                     </button>
                 </div>
@@ -1155,7 +1236,7 @@ See you at the tournament! 🎉</textarea>
                 <button class="close-modal flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400">
                     Cancel
                 </button>
-                <button id="send-to-players" class="flex-1 bg-purple-200 text-gray-800 py-2 rounded-lg hover:bg-purple-300">
+                <button id="send-to-players" class="flex-1 bg-indigo-100 text-gray-800 py-2 rounded-lg hover:bg-indigo-200">
                     Open WhatsApp for Selected Players
                 </button>
             </div>
@@ -1330,7 +1411,7 @@ async function showPlayerView(playerId) {
                     
                     <p class="text-sm text-gray-500 mt-4">See you at the tournament on January 24, 2026!</p>
                     
-                    <button onclick="window.location.href='${window.location.origin}${window.location.pathname}'" class="mt-6 bg-pink-200 text-gray-800 px-6 py-3 rounded-lg hover:bg-pink-300 font-semibold">
+                    <button onclick="window.location.href='${window.location.origin}${window.location.pathname}'" class="mt-6 bg-blue-100 text-gray-800 px-6 py-3 rounded-lg hover:bg-blue-200 font-semibold">
                         Return to Main Page
                     </button>
                 </div>
@@ -1446,7 +1527,7 @@ async function showPlayerView(playerId) {
                             </div>
                         </div>
 
-                        <button type="submit" class="w-full bg-pink-200 text-gray-800 py-3 rounded-lg font-semibold hover:bg-pink-300 transition">
+                        <button type="submit" class="w-full bg-blue-100 text-gray-800 py-3 rounded-lg font-semibold hover:bg-blue-200 transition">
                             Submit Registration
                         </button>
                     </form>
@@ -1682,7 +1763,7 @@ function showPlayerAuthScreen(playerId, playerData, teamData, playerTeamId) {
                             </p>
                         </div>
 
-                        <button type="submit" class="w-full bg-pink-200 text-gray-800 py-3 rounded-lg font-semibold hover:bg-pink-300 transition">
+                        <button type="submit" class="w-full bg-blue-100 text-gray-800 py-3 rounded-lg font-semibold hover:bg-blue-200 transition">
                             ${hasEmail ? 'Login / Sign Up' : 'Continue with Email'}
                         </button>
                     </form>
@@ -1857,14 +1938,14 @@ function showSetupPage() {
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <div class="flex justify-between items-center mb-4">
                             <h4 class="font-bold text-gray-800">Register Team Captains</h4>
-                            <button type="button" id="add-captain-btn" class="bg-emerald-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-emerald-300 text-sm">
+                            <button type="button" id="add-captain-btn" class="bg-teal-100 text-gray-800 px-4 py-2 rounded-lg hover:bg-teal-200 text-sm">
                                 + Add Captain
                             </button>
                         </div>
                         <div id="captains-container" class="space-y-4"></div>
                     </div>
 
-                    <button type="submit" id="submit-setup-btn" class="w-full bg-pink-200 text-gray-800 py-3 rounded-lg font-semibold hover:bg-pink-300">
+                    <button type="submit" id="submit-setup-btn" class="w-full bg-blue-100 text-gray-800 py-3 rounded-lg font-semibold hover:bg-blue-200">
                         Complete Setup
                     </button>
                 </form>
@@ -1957,10 +2038,10 @@ async function showOrganizerDashboard() {
                         <p class="text-sm sm:text-base text-gray-600">Republic Day Tournament 2026</p>
                     </div>
                     <div class="flex flex-wrap gap-2">
-                        <button id="manage-organizers-btn" class="bg-rose-200 text-gray-800 px-3 py-2 rounded-lg hover:bg-rose-300 text-xs sm:text-sm whitespace-nowrap">
+                        <button id="manage-organizers-btn" class="bg-red-100 text-gray-800 px-3 py-2 rounded-lg hover:bg-red-200 text-xs sm:text-sm whitespace-nowrap">
                             👥 Manage Organizers
                         </button>
-                        <button id="add-more-teams-btn" class="bg-emerald-200 text-gray-800 px-3 py-2 rounded-lg hover:bg-emerald-300 text-xs sm:text-sm whitespace-nowrap">
+                        <button id="add-more-teams-btn" class="bg-teal-100 text-gray-800 px-3 py-2 rounded-lg hover:bg-teal-200 text-xs sm:text-sm whitespace-nowrap">
                             + Add More Teams
                         </button>
                     </div>
@@ -1968,7 +2049,7 @@ async function showOrganizerDashboard() {
             </div>
 
             <!-- Tournament Readiness Card -->
-            <div class="bg-gradient-to-br from-pink-200 to-pink-300 text-gray-800 rounded-lg shadow-xl p-6">
+            <div class="bg-gradient-to-br from-blue-100 to-blue-200 text-gray-800 rounded-lg shadow-xl p-6">
                 <div class="flex justify-between items-center mb-4">
                     <div>
                         <h3 class="text-2xl font-bold">Tournament Readiness</h3>
@@ -2041,7 +2122,7 @@ async function showOrganizerDashboard() {
                             <div class="font-semibold text-yellow-800">WARNING: ${pendingLunch} players haven't selected lunch</div>
                             <div class="text-sm text-yellow-600">Needed for catering order - ${daysUntil} days remaining</div>
                         </div>
-                        <button id="message-pending-lunch-btn" class="bg-amber-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-amber-400 text-sm whitespace-nowrap">
+                        <button id="message-pending-lunch-btn" class="bg-yellow-100 text-gray-800 px-4 py-2 rounded-lg hover:bg-yellow-200 text-sm whitespace-nowrap">
                             Send Reminder
                         </button>
                     </div>
@@ -2121,7 +2202,7 @@ async function showOrganizerDashboard() {
                 <div class="space-y-4">
                     ${Object.entries(leagueStats).map(([leagueId, league]) => {
                         const progress = league.totalPlayers > 0 ? (league.completedWaivers / league.totalPlayers) * 100 : 0;
-                        const progressColor = progress >= 90 ? 'bg-emerald-200' : progress >= 70 ? 'bg-sky-200' : progress >= 50 ? 'bg-yellow-500' : 'bg-rose-200';
+                        const progressColor = progress >= 90 ? 'bg-teal-100' : progress >= 70 ? 'bg-cyan-100' : progress >= 50 ? 'bg-yellow-500' : 'bg-red-100';
                         return `
                         <div class="border border-gray-200 rounded-lg p-4">
                             <div class="flex justify-between items-start mb-3">
@@ -2200,7 +2281,7 @@ async function showOrganizerDashboard() {
                                 <span class="font-bold">${Math.round(waiverProgress)}%</span>
                             </div>
                             <div class="w-full bg-gray-200 rounded-full h-3">
-                                <div class="bg-pink-200 h-3 rounded-full transition-all" style="width: ${waiverProgress}%"></div>
+                                <div class="bg-blue-100 h-3 rounded-full transition-all" style="width: ${waiverProgress}%"></div>
                             </div>
                             <div class="text-xs text-gray-600 mt-1">${stats.completedWaivers} of ${stats.totalPlayers} completed</div>
                         </div>
@@ -2210,7 +2291,7 @@ async function showOrganizerDashboard() {
                                 <span class="font-bold">${Math.round(lunchProgress)}%</span>
                             </div>
                             <div class="w-full bg-gray-200 rounded-full h-3">
-                                <div class="bg-purple-200 h-3 rounded-full transition-all" style="width: ${lunchProgress}%"></div>
+                                <div class="bg-indigo-100 h-3 rounded-full transition-all" style="width: ${lunchProgress}%"></div>
                             </div>
                             <div class="text-xs text-gray-600 mt-1">${stats.completedLunch} of ${stats.totalPlayers} completed</div>
                         </div>
@@ -2220,7 +2301,7 @@ async function showOrganizerDashboard() {
                                 <span class="font-bold">${overallReadiness}%</span>
                             </div>
                             <div class="w-full bg-gray-200 rounded-full h-3">
-                                <div class="bg-emerald-200 h-3 rounded-full transition-all" style="width: ${overallReadiness}%"></div>
+                                <div class="bg-teal-100 h-3 rounded-full transition-all" style="width: ${overallReadiness}%"></div>
                             </div>
                             <div class="text-xs text-gray-600 mt-1">Combined completion metric</div>
                         </div>
@@ -2280,13 +2361,13 @@ async function showOrganizerDashboard() {
                                         `}
                                         
                                         <div class="flex flex-wrap gap-2">
-                                            <button class="view-players-btn bg-sky-200 text-gray-800 px-3 py-1 rounded text-xs hover:bg-sky-300" data-team-id="${team.id}">
+                                            <button class="view-players-btn bg-cyan-100 text-gray-800 px-3 py-1 rounded text-xs hover:bg-cyan-200" data-team-id="${team.id}">
                                                 👥 View Players
                                             </button>
-                                            <button class="edit-team-btn bg-emerald-200 text-gray-800 px-3 py-1 rounded text-xs hover:bg-emerald-300" data-team-id="${team.id}">
+                                            <button class="edit-team-btn bg-teal-100 text-gray-800 px-3 py-1 rounded text-xs hover:bg-teal-200" data-team-id="${team.id}">
                                                 ✏️ Edit
                                             </button>
-                                            <button class="delete-team-btn bg-rose-200 text-gray-800 px-3 py-1 rounded text-xs hover:bg-rose-300" data-team-id="${team.id}">
+                                            <button class="delete-team-btn bg-red-100 text-gray-800 px-3 py-1 rounded text-xs hover:bg-red-200" data-team-id="${team.id}">
                                                 🗑️ Delete
                                             </button>
                                         </div>
@@ -2463,7 +2544,7 @@ async function showManageOrganizersModal() {
                         placeholder="organizer@example.com"
                         required
                     >
-                    <button type="submit" class="bg-emerald-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-emerald-300 whitespace-nowrap">
+                    <button type="submit" class="bg-teal-100 text-gray-800 px-4 py-2 rounded-lg hover:bg-teal-200 whitespace-nowrap">
                         + Add
                     </button>
                 </form>
@@ -2481,7 +2562,7 @@ async function showManageOrganizersModal() {
                                 ${isHardcoded ? '<span class="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Default</span>' : ''}
                             </div>
                             ${!isHardcoded && organizerId ? `
-                                <button class="delete-organizer bg-rose-200 text-gray-800 px-3 py-1 rounded text-sm hover:bg-rose-300" data-organizer-id="${organizerId}">
+                                <button class="delete-organizer bg-red-100 text-gray-800 px-3 py-1 rounded text-sm hover:bg-red-200" data-organizer-id="${organizerId}">
                                     Delete
                                 </button>
                             ` : ''}
@@ -2590,13 +2671,13 @@ function messageAllCaptains(teams) {
             
             <!-- Selection Controls -->
             <div class="mb-4 flex flex-wrap gap-2">
-                <button id="select-all-captains" class="px-4 py-2 bg-sky-200 text-gray-800 rounded-lg hover:bg-sky-300 text-sm">
+                <button id="select-all-captains" class="px-4 py-2 bg-cyan-100 text-gray-800 rounded-lg hover:bg-cyan-200 text-sm">
                     ✅ Select All (${captains.length})
                 </button>
                 <button id="deselect-all-captains" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 text-sm">
                     ❌ Deselect All
                 </button>
-                <button id="select-incomplete-captains" class="px-4 py-2 bg-pink-200 text-gray-800 rounded-lg hover:bg-pink-300 text-sm">
+                <button id="select-incomplete-captains" class="px-4 py-2 bg-blue-100 text-gray-800 rounded-lg hover:bg-blue-200 text-sm">
                     ⚠️ Select Incomplete (<100%)
                 </button>
                 <div class="flex-1"></div>
@@ -2707,7 +2788,7 @@ Let's make this tournament amazing! 🎉</textarea>
                 <button id="close-captain-modal" class="px-6 bg-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-400">
                     Cancel
                 </button>
-                <button id="preview-messages-btn" class="flex-1 bg-purple-200 text-gray-800 py-3 rounded-lg font-semibold hover:bg-purple-300">
+                <button id="preview-messages-btn" class="flex-1 bg-indigo-100 text-gray-800 py-3 rounded-lg font-semibold hover:bg-indigo-200">
                     👁️ Preview Messages
                 </button>
                 <button id="send-captain-messages" class="flex-1 bg-green-600 text-gray-800 py-3 rounded-lg font-semibold hover:bg-green-700">
@@ -2796,7 +2877,7 @@ Let's make this tournament amazing! 🎉</textarea>
                     </div>
                     ` : ''}
                 </div>
-                <button id="close-preview" class="w-full bg-sky-200 text-gray-800 py-3 rounded-lg font-semibold hover:bg-sky-300">
+                <button id="close-preview" class="w-full bg-cyan-100 text-gray-800 py-3 rounded-lg font-semibold hover:bg-cyan-200">
                     Close Preview
                 </button>
             </div>
@@ -2972,7 +3053,7 @@ See you at the tournament! 🎉</textarea>
                 <button class="close-modal flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400">
                     Cancel
                 </button>
-                <button id="send-to-players" class="flex-1 bg-purple-200 text-gray-800 py-2 rounded-lg hover:bg-purple-300">
+                <button id="send-to-players" class="flex-1 bg-indigo-100 text-gray-800 py-2 rounded-lg hover:bg-indigo-200">
                     Open WhatsApp for Selected Players
                 </button>
             </div>
@@ -3072,7 +3153,7 @@ function showTeamPlayersModal(teamId, team) {
                                             </div>
                                         </div>
                                     </div>
-                                    <button class="delete-player-btn bg-rose-200 text-gray-800 px-3 py-1 rounded text-xs hover:bg-rose-300" data-team-id="${teamId}" data-player-id="${playerId}">
+                                    <button class="delete-player-btn bg-red-100 text-gray-800 px-3 py-1 rounded text-xs hover:bg-red-200" data-team-id="${teamId}" data-player-id="${playerId}">
                                         Delete
                                     </button>
                                 </div>
@@ -3147,7 +3228,7 @@ function showEditTeamModal(teamId, team) {
                     <button type="button" class="cancel-edit flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400">
                         Cancel
                     </button>
-                    <button type="submit" class="flex-1 bg-pink-200 text-gray-800 py-2 rounded-lg hover:bg-pink-300">
+                    <button type="submit" class="flex-1 bg-blue-100 text-gray-800 py-2 rounded-lg hover:bg-blue-200">
                         Save Changes
                     </button>
                 </div>
@@ -3604,9 +3685,9 @@ function showToast(message, type = 'info') {
     const toast = document.createElement('div');
     
     const colors = {
-        success: 'bg-emerald-200',
-        error: 'bg-rose-200',
-        info: 'bg-sky-200',
+        success: 'bg-teal-100',
+        error: 'bg-red-100',
+        info: 'bg-cyan-100',
         warning: 'bg-yellow-500'
     };
     
