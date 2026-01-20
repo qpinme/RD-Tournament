@@ -284,6 +284,7 @@ async function handleAuthUser(user) {
             console.log('🔍 Debug - User role:', userRole);
             console.log('🔍 Debug - Team ID:', userTeamId);
             console.log('🔍 Debug - All Team IDs:', userTeamIds);
+            console.log('🔍 Debug - About to show captain view with', userTeamIds.length, 'total teams');
             
             // If user is both organizer and captain, show role switcher
             if (isOrganizer && isCaptain) {
@@ -293,6 +294,7 @@ async function handleAuthUser(user) {
             if (userRole === 'organizer') {
                 await showOrganizerView();
             } else if (userRole === 'captain') {
+                console.log('🎯 Calling showCaptainView() - should find', userTeamIds.length, 'teams');
                 await showCaptainView();
             }
         } else {
