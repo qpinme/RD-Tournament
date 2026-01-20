@@ -20,7 +20,7 @@
         
         .loader {
             border: 3px solid #f3f3f3;
-            border-top: 3px solid #FBCFE8;
+            border-top: 3px solid #DBEAFE;
             border-radius: 50%;
             width: 40px;
             height: 40px;
@@ -58,16 +58,16 @@
         }
         
         ::-webkit-scrollbar-thumb {
-            background: #E9D5FF;
+            background: #E0E7FF;
             border-radius: 4px;
         }
         
         ::-webkit-scrollbar-thumb:hover {
-            background: #D8B4FE;
+            background: #C7D2FE;
         }
     </style>
 </head>
-<body class="bg-purple-50">
+<body class="bg-slate-50">
     <!-- Loading Screen -->
     <div id="loading-screen" class="fixed inset-0 bg-white flex items-center justify-center z-50">
         <div class="text-center px-4">
@@ -78,10 +78,10 @@
 
     <!-- Firebase Config Error -->
     <div id="config-error" class="hidden fixed inset-0 bg-white flex items-center justify-center z-50 p-4">
-        <div class="max-w-md bg-rose-50 border-2 border-rose-300 rounded-lg p-6">
+        <div class="max-w-md bg-red-50 border-2 border-red-200 rounded-lg p-6">
             <div class="text-4xl text-center mb-4">⚠️</div>
-            <h2 class="text-xl font-bold text-rose-800 mb-3 text-center">Firebase Not Configured</h2>
-            <p class="text-rose-700 mb-4 text-sm">Please configure Firebase in <code class="bg-rose-200 px-2 py-1 rounded">app.js</code> before using this app.</p>
+            <h2 class="text-xl font-bold text-red-800 mb-3 text-center">Firebase Not Configured</h2>
+            <p class="text-red-700 mb-4 text-sm">Please configure Firebase in <code class="bg-red-100 px-2 py-1 rounded">app.js</code> before using this app.</p>
             <div class="bg-white p-3 rounded text-xs">
                 <p class="font-semibold mb-2">Quick Steps:</p>
                 <ol class="list-decimal ml-4 space-y-1">
@@ -91,14 +91,14 @@
                     <li>Reload this page</li>
                 </ol>
             </div>
-            <p class="text-xs text-rose-600 mt-3 text-center">See SETUP.md for detailed instructions</p>
+            <p class="text-xs text-red-600 mt-3 text-center">See SETUP.md for detailed instructions</p>
         </div>
     </div>
 
     <!-- Main App -->
     <div id="app" class="hidden min-h-screen">
         <!-- Header -->
-        <header class="bg-gradient-to-r from-pink-200 via-purple-100 to-sky-200 shadow-lg sticky top-0 z-40">
+        <header class="bg-gradient-to-r from-blue-100 via-cyan-50 to-teal-100 shadow-lg sticky top-0 z-40">
             <div class="max-w-7xl mx-auto px-4 py-4 sm:py-6">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center space-x-2 sm:space-x-4">
@@ -110,7 +110,7 @@
                     </div>
                     <div id="user-info" class="hidden items-center gap-2 sm:gap-4">
                         <span id="user-email" class="text-xs sm:text-sm text-gray-700 hidden sm:inline"></span>
-                        <button id="logout-btn" class="bg-rose-200 text-gray-800 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg hover:bg-rose-300 text-sm">
+                        <button id="logout-btn" class="bg-red-100 text-gray-800 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg hover:bg-red-200 text-sm">
                             Logout
                         </button>
                     </div>
