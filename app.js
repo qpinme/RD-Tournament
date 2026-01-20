@@ -79,10 +79,10 @@ function askForRole() {
                 <h3 class="text-xl font-bold text-gray-800 mb-4">Choose Your Role</h3>
                 <p class="text-gray-600 mb-6">You are registered as both an organizer and a team captain. Which role would you like to use?</p>
                 <div class="flex gap-3">
-                    <button class="choose-organizer flex-1 bg-orange-500 text-white py-3 rounded-lg hover:bg-orange-600">
+                    <button class="choose-organizer flex-1 bg-pink-200 text-gray-800 py-3 rounded-lg hover:bg-pink-300">
                         Organizer Dashboard
                     </button>
-                    <button class="choose-captain flex-1 bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600">
+                    <button class="choose-captain flex-1 bg-sky-200 text-gray-800 py-3 rounded-lg hover:bg-sky-300">
                         My Team (Captain)
                     </button>
                 </div>
@@ -112,7 +112,7 @@ function showRoleSwitcher(currentRole, captainSnapshot) {
     
     const switcher = document.createElement('button');
     switcher.id = 'role-switcher';
-    switcher.className = 'ml-3 bg-purple-500 text-white px-3 py-1 rounded text-sm hover:bg-purple-600';
+    switcher.className = 'ml-3 bg-purple-200 text-gray-800 px-3 py-1 rounded text-sm hover:bg-purple-300';
     switcher.textContent = currentRole === 'organizer' ? '🏐 Switch to Captain' : '⚙️ Switch to Organizer';
     
     switcher.addEventListener('click', async () => {
@@ -353,11 +353,11 @@ function showWhatsAppBrowserError() {
                 </div>
 
                 <div class="space-y-3">
-                    <button onclick="navigator.clipboard.writeText('${currentUrl}').then(() => alert('Link copied! Now paste it in your browser.'))" class="w-full bg-orange-500 text-white py-3 rounded-lg font-semibold hover:bg-orange-600 transition">
+                    <button onclick="navigator.clipboard.writeText('${currentUrl}').then(() => alert('Link copied! Now paste it in your browser.'))" class="w-full bg-pink-200 text-gray-800 py-3 rounded-lg font-semibold hover:bg-pink-300 transition">
                         📋 Copy Link
                     </button>
                     
-                    <button onclick="window.location.href = '${currentUrl}'" class="w-full bg-blue-500 text-white py-3 rounded-lg font-semibold hover:bg-blue-600 transition">
+                    <button onclick="window.location.href = '${currentUrl}'" class="w-full bg-sky-200 text-gray-800 py-3 rounded-lg font-semibold hover:bg-sky-300 transition">
                         🔄 Try Opening Anyway
                     </button>
                 </div>
@@ -401,7 +401,7 @@ function showLoginView() {
                         <p class="text-xs text-gray-500 mt-1">First time? Create a new password (min 6 characters)</p>
                     </div>
 
-                    <button type="submit" class="w-full bg-orange-500 text-white py-3 rounded-lg font-semibold hover:bg-orange-600 transition">
+                    <button type="submit" class="w-full bg-pink-200 text-gray-800 py-3 rounded-lg font-semibold hover:bg-pink-300 transition">
                         Login / Sign Up
                     </button>
                 </form>
@@ -538,12 +538,12 @@ function showSetupModal() {
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <h4 class="font-bold text-gray-800 mb-4">2. Register Team Captains</h4>
                         <div id="captains-container" class="space-y-4"></div>
-                        <button type="button" id="add-captain-btn" class="mt-3 w-full bg-green-500 text-white py-2 rounded-lg hover:bg-green-600">
+                        <button type="button" id="add-captain-btn" class="mt-3 w-full bg-emerald-200 text-gray-800 py-2 rounded-lg hover:bg-emerald-300">
                             + Add Captain
                         </button>
                     </div>
 
-                    <button type="submit" class="w-full bg-orange-500 text-white py-3 rounded-lg font-semibold hover:bg-orange-600">
+                    <button type="submit" class="w-full bg-pink-200 text-gray-800 py-3 rounded-lg font-semibold hover:bg-pink-300">
                         Complete Setup
                     </button>
                 </form>
@@ -734,7 +734,7 @@ async function showCaptainView() {
                             ⚠️ <strong>Captain:</strong> You're not registered as a player yet! 
                             You need to sign the waiver and select lunch preference to play.
                         </p>
-                        <button id="register-captain-btn" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 text-sm">
+                        <button id="register-captain-btn" class="bg-sky-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-sky-300 text-sm">
                             Register Myself as Player
                         </button>
                     </div>
@@ -749,7 +749,7 @@ async function showCaptainView() {
                         <p class="text-sm text-yellow-800">
                             ⚠️ You're added as a player but haven't signed the waiver yet!
                         </p>
-                        <button class="complete-registration-btn bg-yellow-600 text-white px-3 py-2 rounded-lg hover:bg-yellow-700 text-sm mt-2" data-player-id="${captainAsPlayer[0]}">
+                        <button class="complete-registration-btn bg-amber-300 text-gray-800 px-3 py-2 rounded-lg hover:bg-amber-400 text-sm mt-2" data-player-id="${captainAsPlayer[0]}">
                             Complete Registration
                         </button>
                     </div>
@@ -764,11 +764,11 @@ async function showCaptainView() {
                     </div>
                     <div class="flex gap-2">
                         ${Object.keys(players).length > 0 ? `
-                            <button id="message-players-btn" class="bg-purple-500 text-white px-3 py-2 rounded-lg hover:bg-purple-600 text-xs sm:text-sm whitespace-nowrap">
+                            <button id="message-players-btn" class="bg-purple-200 text-gray-800 px-3 py-2 rounded-lg hover:bg-purple-300 text-xs sm:text-sm whitespace-nowrap">
                                 📱 Message Players
                             </button>
                         ` : ''}
-                        <button id="add-player-btn" class="bg-orange-500 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg hover:bg-orange-600 text-sm sm:text-base whitespace-nowrap">
+                        <button id="add-player-btn" class="bg-pink-200 text-gray-800 px-3 py-2 sm:px-4 sm:py-2 rounded-lg hover:bg-pink-300 text-sm sm:text-base whitespace-nowrap">
                             + Add
                         </button>
                     </div>
@@ -813,16 +813,16 @@ async function showCaptainView() {
                                 </div>
 
                                 <div class="flex flex-col gap-2">
-                                    <button class="edit-player bg-blue-500 text-white px-3 py-1 rounded text-xs sm:text-sm hover:bg-blue-600 whitespace-nowrap" data-player-id="${playerId}">
+                                    <button class="edit-player bg-sky-200 text-gray-800 px-3 py-1 rounded text-xs sm:text-sm hover:bg-sky-300 whitespace-nowrap" data-player-id="${playerId}">
                                         ✏️ Edit
                                     </button>
-                                    <button class="share-whatsapp bg-green-500 text-white px-3 py-1 rounded text-xs sm:text-sm hover:bg-green-600 whitespace-nowrap" data-player-id="${playerId}" data-player-name="${player.name}" data-player-phone="${player.phone}" data-player-email="${player.email || ''}">
+                                    <button class="share-whatsapp bg-emerald-200 text-gray-800 px-3 py-1 rounded text-xs sm:text-sm hover:bg-emerald-300 whitespace-nowrap" data-player-id="${playerId}" data-player-name="${player.name}" data-player-phone="${player.phone}" data-player-email="${player.email || ''}">
                                         📱 WhatsApp
                                     </button>
-                                    <button class="copy-link bg-gray-500 text-white px-3 py-1 rounded text-xs sm:text-sm hover:bg-gray-600 whitespace-nowrap" data-player-id="${playerId}">
+                                    <button class="copy-link bg-gray-300 text-gray-800 px-3 py-1 rounded text-xs sm:text-sm hover:bg-gray-400 whitespace-nowrap" data-player-id="${playerId}">
                                         🔗 Copy Link
                                     </button>
-                                    <button class="remove-player bg-red-500 text-white px-3 py-1 rounded text-xs sm:text-sm hover:bg-red-600 whitespace-nowrap" data-player-id="${playerId}">
+                                    <button class="remove-player bg-rose-200 text-gray-800 px-3 py-1 rounded text-xs sm:text-sm hover:bg-rose-300 whitespace-nowrap" data-player-id="${playerId}">
                                         🗑️ Remove
                                     </button>
                                 </div>
@@ -875,7 +875,7 @@ async function showCaptainView() {
                     <div class="bg-white rounded-lg max-w-md w-full p-6">
                         <h3 class="text-xl font-bold text-gray-800 mb-4">Complete Your Registration</h3>
                         <p class="text-gray-700 mb-4">Click the button below to complete your registration (sign waiver & select lunch):</p>
-                        <a href="${link}" class="block w-full bg-orange-500 text-white py-3 rounded-lg text-center hover:bg-orange-600 mb-3">
+                        <a href="${link}" class="block w-full bg-pink-200 text-gray-800 py-3 rounded-lg text-center hover:bg-pink-300 mb-3">
                             Complete Registration Now
                         </a>
                         <button class="close-modal w-full bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400">
@@ -964,7 +964,7 @@ function showAddPlayerModal(teamId) {
                     <button type="button" id="cancel-add" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400">
                         Cancel
                     </button>
-                    <button type="submit" class="flex-1 bg-orange-500 text-white py-2 rounded-lg hover:bg-orange-600">
+                    <button type="submit" class="flex-1 bg-pink-200 text-gray-800 py-2 rounded-lg hover:bg-pink-300">
                         Add Player
                     </button>
                 </div>
@@ -1027,7 +1027,7 @@ function showEditPlayerModal(teamId, playerId, playerData) {
                     <button type="button" id="cancel-edit" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 font-semibold">
                         Cancel
                     </button>
-                    <button type="submit" class="flex-1 bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 font-semibold">
+                    <button type="submit" class="flex-1 bg-sky-200 text-gray-800 py-2 rounded-lg hover:bg-sky-300 font-semibold">
                         Save Changes
                     </button>
                 </div>
@@ -1155,7 +1155,7 @@ See you at the tournament! 🎉</textarea>
                 <button class="close-modal flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400">
                     Cancel
                 </button>
-                <button id="send-to-players" class="flex-1 bg-purple-500 text-white py-2 rounded-lg hover:bg-purple-600">
+                <button id="send-to-players" class="flex-1 bg-purple-200 text-gray-800 py-2 rounded-lg hover:bg-purple-300">
                     Open WhatsApp for Selected Players
                 </button>
             </div>
@@ -1330,7 +1330,7 @@ async function showPlayerView(playerId) {
                     
                     <p class="text-sm text-gray-500 mt-4">See you at the tournament on January 24, 2026!</p>
                     
-                    <button onclick="window.location.href='${window.location.origin}${window.location.pathname}'" class="mt-6 bg-orange-500 text-white px-6 py-3 rounded-lg hover:bg-orange-600 font-semibold">
+                    <button onclick="window.location.href='${window.location.origin}${window.location.pathname}'" class="mt-6 bg-pink-200 text-gray-800 px-6 py-3 rounded-lg hover:bg-pink-300 font-semibold">
                         Return to Main Page
                     </button>
                 </div>
@@ -1446,7 +1446,7 @@ async function showPlayerView(playerId) {
                             </div>
                         </div>
 
-                        <button type="submit" class="w-full bg-orange-500 text-white py-3 rounded-lg font-semibold hover:bg-orange-600 transition">
+                        <button type="submit" class="w-full bg-pink-200 text-gray-800 py-3 rounded-lg font-semibold hover:bg-pink-300 transition">
                             Submit Registration
                         </button>
                     </form>
@@ -1682,7 +1682,7 @@ function showPlayerAuthScreen(playerId, playerData, teamData, playerTeamId) {
                             </p>
                         </div>
 
-                        <button type="submit" class="w-full bg-orange-500 text-white py-3 rounded-lg font-semibold hover:bg-orange-600 transition">
+                        <button type="submit" class="w-full bg-pink-200 text-gray-800 py-3 rounded-lg font-semibold hover:bg-pink-300 transition">
                             ${hasEmail ? 'Login / Sign Up' : 'Continue with Email'}
                         </button>
                     </form>
@@ -1857,14 +1857,14 @@ function showSetupPage() {
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <div class="flex justify-between items-center mb-4">
                             <h4 class="font-bold text-gray-800">Register Team Captains</h4>
-                            <button type="button" id="add-captain-btn" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 text-sm">
+                            <button type="button" id="add-captain-btn" class="bg-emerald-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-emerald-300 text-sm">
                                 + Add Captain
                             </button>
                         </div>
                         <div id="captains-container" class="space-y-4"></div>
                     </div>
 
-                    <button type="submit" id="submit-setup-btn" class="w-full bg-orange-500 text-white py-3 rounded-lg font-semibold hover:bg-orange-600">
+                    <button type="submit" id="submit-setup-btn" class="w-full bg-pink-200 text-gray-800 py-3 rounded-lg font-semibold hover:bg-pink-300">
                         Complete Setup
                     </button>
                 </form>
@@ -1957,10 +1957,10 @@ async function showOrganizerDashboard() {
                         <p class="text-sm sm:text-base text-gray-600">Republic Day Tournament 2026</p>
                     </div>
                     <div class="flex flex-wrap gap-2">
-                        <button id="manage-organizers-btn" class="bg-red-500 text-white px-3 py-2 rounded-lg hover:bg-red-600 text-xs sm:text-sm whitespace-nowrap">
+                        <button id="manage-organizers-btn" class="bg-rose-200 text-gray-800 px-3 py-2 rounded-lg hover:bg-rose-300 text-xs sm:text-sm whitespace-nowrap">
                             👥 Manage Organizers
                         </button>
-                        <button id="add-more-teams-btn" class="bg-green-500 text-white px-3 py-2 rounded-lg hover:bg-green-600 text-xs sm:text-sm whitespace-nowrap">
+                        <button id="add-more-teams-btn" class="bg-emerald-200 text-gray-800 px-3 py-2 rounded-lg hover:bg-emerald-300 text-xs sm:text-sm whitespace-nowrap">
                             + Add More Teams
                         </button>
                     </div>
@@ -1968,7 +1968,7 @@ async function showOrganizerDashboard() {
             </div>
 
             <!-- Tournament Readiness Card -->
-            <div class="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-lg shadow-xl p-6">
+            <div class="bg-gradient-to-br from-pink-200 to-pink-300 text-gray-800 rounded-lg shadow-xl p-6">
                 <div class="flex justify-between items-center mb-4">
                     <div>
                         <h3 class="text-2xl font-bold">Tournament Readiness</h3>
@@ -2029,7 +2029,7 @@ async function showOrganizerDashboard() {
                             <div class="font-semibold text-red-800">URGENT: ${pendingWaivers} players haven't signed waivers</div>
                             <div class="text-sm text-red-600">Legal requirement - need immediate follow-up</div>
                         </div>
-                        <button id="message-pending-waivers-btn" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm whitespace-nowrap">
+                        <button id="message-pending-waivers-btn" class="bg-red-600 text-gray-800 px-4 py-2 rounded-lg hover:bg-red-700 text-sm whitespace-nowrap">
                             Send Reminder
                         </button>
                     </div>
@@ -2041,7 +2041,7 @@ async function showOrganizerDashboard() {
                             <div class="font-semibold text-yellow-800">WARNING: ${pendingLunch} players haven't selected lunch</div>
                             <div class="text-sm text-yellow-600">Needed for catering order - ${daysUntil} days remaining</div>
                         </div>
-                        <button id="message-pending-lunch-btn" class="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 text-sm whitespace-nowrap">
+                        <button id="message-pending-lunch-btn" class="bg-amber-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-amber-400 text-sm whitespace-nowrap">
                             Send Reminder
                         </button>
                     </div>
@@ -2121,7 +2121,7 @@ async function showOrganizerDashboard() {
                 <div class="space-y-4">
                     ${Object.entries(leagueStats).map(([leagueId, league]) => {
                         const progress = league.totalPlayers > 0 ? (league.completedWaivers / league.totalPlayers) * 100 : 0;
-                        const progressColor = progress >= 90 ? 'bg-green-500' : progress >= 70 ? 'bg-blue-500' : progress >= 50 ? 'bg-yellow-500' : 'bg-red-500';
+                        const progressColor = progress >= 90 ? 'bg-emerald-200' : progress >= 70 ? 'bg-sky-200' : progress >= 50 ? 'bg-yellow-500' : 'bg-rose-200';
                         return `
                         <div class="border border-gray-200 rounded-lg p-4">
                             <div class="flex justify-between items-start mb-3">
@@ -2200,7 +2200,7 @@ async function showOrganizerDashboard() {
                                 <span class="font-bold">${Math.round(waiverProgress)}%</span>
                             </div>
                             <div class="w-full bg-gray-200 rounded-full h-3">
-                                <div class="bg-orange-500 h-3 rounded-full transition-all" style="width: ${waiverProgress}%"></div>
+                                <div class="bg-pink-200 h-3 rounded-full transition-all" style="width: ${waiverProgress}%"></div>
                             </div>
                             <div class="text-xs text-gray-600 mt-1">${stats.completedWaivers} of ${stats.totalPlayers} completed</div>
                         </div>
@@ -2210,7 +2210,7 @@ async function showOrganizerDashboard() {
                                 <span class="font-bold">${Math.round(lunchProgress)}%</span>
                             </div>
                             <div class="w-full bg-gray-200 rounded-full h-3">
-                                <div class="bg-purple-500 h-3 rounded-full transition-all" style="width: ${lunchProgress}%"></div>
+                                <div class="bg-purple-200 h-3 rounded-full transition-all" style="width: ${lunchProgress}%"></div>
                             </div>
                             <div class="text-xs text-gray-600 mt-1">${stats.completedLunch} of ${stats.totalPlayers} completed</div>
                         </div>
@@ -2220,7 +2220,7 @@ async function showOrganizerDashboard() {
                                 <span class="font-bold">${overallReadiness}%</span>
                             </div>
                             <div class="w-full bg-gray-200 rounded-full h-3">
-                                <div class="bg-green-500 h-3 rounded-full transition-all" style="width: ${overallReadiness}%"></div>
+                                <div class="bg-emerald-200 h-3 rounded-full transition-all" style="width: ${overallReadiness}%"></div>
                             </div>
                             <div class="text-xs text-gray-600 mt-1">Combined completion metric</div>
                         </div>
@@ -2280,13 +2280,13 @@ async function showOrganizerDashboard() {
                                         `}
                                         
                                         <div class="flex flex-wrap gap-2">
-                                            <button class="view-players-btn bg-blue-500 text-white px-3 py-1 rounded text-xs hover:bg-blue-600" data-team-id="${team.id}">
+                                            <button class="view-players-btn bg-sky-200 text-gray-800 px-3 py-1 rounded text-xs hover:bg-sky-300" data-team-id="${team.id}">
                                                 👥 View Players
                                             </button>
-                                            <button class="edit-team-btn bg-green-500 text-white px-3 py-1 rounded text-xs hover:bg-green-600" data-team-id="${team.id}">
+                                            <button class="edit-team-btn bg-emerald-200 text-gray-800 px-3 py-1 rounded text-xs hover:bg-emerald-300" data-team-id="${team.id}">
                                                 ✏️ Edit
                                             </button>
-                                            <button class="delete-team-btn bg-red-500 text-white px-3 py-1 rounded text-xs hover:bg-red-600" data-team-id="${team.id}">
+                                            <button class="delete-team-btn bg-rose-200 text-gray-800 px-3 py-1 rounded text-xs hover:bg-rose-300" data-team-id="${team.id}">
                                                 🗑️ Delete
                                             </button>
                                         </div>
@@ -2463,7 +2463,7 @@ async function showManageOrganizersModal() {
                         placeholder="organizer@example.com"
                         required
                     >
-                    <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 whitespace-nowrap">
+                    <button type="submit" class="bg-emerald-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-emerald-300 whitespace-nowrap">
                         + Add
                     </button>
                 </form>
@@ -2481,7 +2481,7 @@ async function showManageOrganizersModal() {
                                 ${isHardcoded ? '<span class="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Default</span>' : ''}
                             </div>
                             ${!isHardcoded && organizerId ? `
-                                <button class="delete-organizer bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600" data-organizer-id="${organizerId}">
+                                <button class="delete-organizer bg-rose-200 text-gray-800 px-3 py-1 rounded text-sm hover:bg-rose-300" data-organizer-id="${organizerId}">
                                     Delete
                                 </button>
                             ` : ''}
@@ -2590,13 +2590,13 @@ function messageAllCaptains(teams) {
             
             <!-- Selection Controls -->
             <div class="mb-4 flex flex-wrap gap-2">
-                <button id="select-all-captains" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm">
+                <button id="select-all-captains" class="px-4 py-2 bg-sky-200 text-gray-800 rounded-lg hover:bg-sky-300 text-sm">
                     ✅ Select All (${captains.length})
                 </button>
                 <button id="deselect-all-captains" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 text-sm">
                     ❌ Deselect All
                 </button>
-                <button id="select-incomplete-captains" class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 text-sm">
+                <button id="select-incomplete-captains" class="px-4 py-2 bg-pink-200 text-gray-800 rounded-lg hover:bg-pink-300 text-sm">
                     ⚠️ Select Incomplete (<100%)
                 </button>
                 <div class="flex-1"></div>
@@ -2707,10 +2707,10 @@ Let's make this tournament amazing! 🎉</textarea>
                 <button id="close-captain-modal" class="px-6 bg-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-400">
                     Cancel
                 </button>
-                <button id="preview-messages-btn" class="flex-1 bg-purple-500 text-white py-3 rounded-lg font-semibold hover:bg-purple-600">
+                <button id="preview-messages-btn" class="flex-1 bg-purple-200 text-gray-800 py-3 rounded-lg font-semibold hover:bg-purple-300">
                     👁️ Preview Messages
                 </button>
-                <button id="send-captain-messages" class="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700">
+                <button id="send-captain-messages" class="flex-1 bg-green-600 text-gray-800 py-3 rounded-lg font-semibold hover:bg-green-700">
                     📱 Send to Selected (<span id="send-count">0</span>)
                 </button>
             </div>
@@ -2796,7 +2796,7 @@ Let's make this tournament amazing! 🎉</textarea>
                     </div>
                     ` : ''}
                 </div>
-                <button id="close-preview" class="w-full bg-blue-500 text-white py-3 rounded-lg font-semibold hover:bg-blue-600">
+                <button id="close-preview" class="w-full bg-sky-200 text-gray-800 py-3 rounded-lg font-semibold hover:bg-sky-300">
                     Close Preview
                 </button>
             </div>
@@ -2875,7 +2875,7 @@ Let's make this tournament amazing! 🎉</textarea>
 
 function showProgressToast(message) {
     const toast = document.createElement('div');
-    toast.className = 'fixed bottom-4 right-4 bg-blue-600 text-white px-6 py-4 rounded-lg shadow-xl z-[70] flex items-center gap-3';
+    toast.className = 'fixed bottom-4 right-4 bg-blue-600 text-gray-800 px-6 py-4 rounded-lg shadow-xl z-[70] flex items-center gap-3';
     toast.innerHTML = `
         <div class="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
         <span id="progress-text">${message}</span>
@@ -2972,7 +2972,7 @@ See you at the tournament! 🎉</textarea>
                 <button class="close-modal flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400">
                     Cancel
                 </button>
-                <button id="send-to-players" class="flex-1 bg-purple-500 text-white py-2 rounded-lg hover:bg-purple-600">
+                <button id="send-to-players" class="flex-1 bg-purple-200 text-gray-800 py-2 rounded-lg hover:bg-purple-300">
                     Open WhatsApp for Selected Players
                 </button>
             </div>
@@ -3072,7 +3072,7 @@ function showTeamPlayersModal(teamId, team) {
                                             </div>
                                         </div>
                                     </div>
-                                    <button class="delete-player-btn bg-red-500 text-white px-3 py-1 rounded text-xs hover:bg-red-600" data-team-id="${teamId}" data-player-id="${playerId}">
+                                    <button class="delete-player-btn bg-rose-200 text-gray-800 px-3 py-1 rounded text-xs hover:bg-rose-300" data-team-id="${teamId}" data-player-id="${playerId}">
                                         Delete
                                     </button>
                                 </div>
@@ -3147,7 +3147,7 @@ function showEditTeamModal(teamId, team) {
                     <button type="button" class="cancel-edit flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400">
                         Cancel
                     </button>
-                    <button type="submit" class="flex-1 bg-orange-500 text-white py-2 rounded-lg hover:bg-orange-600">
+                    <button type="submit" class="flex-1 bg-pink-200 text-gray-800 py-2 rounded-lg hover:bg-pink-300">
                         Save Changes
                     </button>
                 </div>
@@ -3435,7 +3435,7 @@ Thank you! 🏐`;
             </div>
             
             <div class="flex gap-3">
-                <button id="send-bulk-btn" class="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700">
+                <button id="send-bulk-btn" class="flex-1 bg-green-600 text-gray-800 py-3 rounded-lg font-semibold hover:bg-green-700">
                     📱 Send to ${players.length} Players
                 </button>
                 <button id="cancel-bulk-btn" class="px-6 bg-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-400">
@@ -3604,16 +3604,16 @@ function showToast(message, type = 'info') {
     const toast = document.createElement('div');
     
     const colors = {
-        success: 'bg-green-500',
-        error: 'bg-red-500',
-        info: 'bg-blue-500',
+        success: 'bg-emerald-200',
+        error: 'bg-rose-200',
+        info: 'bg-sky-200',
         warning: 'bg-yellow-500'
     };
     
-    toast.className = `${colors[type]} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-slide-in`;
+    toast.className = `${colors[type]} text-gray-800 px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-slide-in`;
     toast.innerHTML = `
         <span class="flex-1">${message}</span>
-        <button class="text-white hover:text-gray-200" onclick="this.parentElement.remove()">×</button>
+        <button class="text-gray-800 hover:text-gray-200" onclick="this.parentElement.remove()">×</button>
     `;
     
     container.appendChild(toast);
