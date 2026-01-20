@@ -1098,6 +1098,12 @@ See you at the tournament! 🎉</textarea>
 
 function shareViaWhatsApp(playerId, playerName, playerPhone, playerEmail, teamName) {
     const link = `${window.location.origin}${window.location.pathname}?player=${playerId}`;
+    
+    // Handle undefined or null email
+    const emailText = playerEmail && playerEmail !== 'undefined' && playerEmail.trim() !== '' 
+        ? playerEmail 
+        : 'You will provide your email when you register';
+    
     const message = `Hi ${playerName}!
 
 You've been added to *${teamName}* for the *Republic Day Tournament 2026* 🏐
@@ -1108,7 +1114,7 @@ You've been added to *${teamName}* for the *Republic Day Tournament 2026* 🏐
 ${link}
 
 *Step 2:* Create your account or login using:
-📧 Email: ${playerEmail}
+📧 Email: ${emailText}
 
 *Step 3:* Sign the waiver form
 
