@@ -2292,54 +2292,35 @@ function attachOrganizerDashboardListeners(teams, stats) {
     });
     
     document.querySelectorAll('.delete-team-btn').forEach(btn => {
-                            <div class="flex justify-between text-xs sm:text-sm mb-1">
-                                <span>Waivers Completion</span>
-                                <span>${stats.totalPlayers > 0 ? Math.round((stats.completedWaivers / stats.totalPlayers) * 100) : 0}%</span>
-                            </div>
-                            <div class="w-full bg-gray-200 rounded-full h-2">
-                                <div class="bg-orange-500 h-2 rounded-full transition-all" style="width: ${stats.totalPlayers > 0 ? (stats.completedWaivers / stats.totalPlayers) * 100 : 0}%"></div>
-                            </div>
-                        </div>
-                        <div>
-                            <div class="flex justify-between text-xs sm:text-sm mb-1">
-                                <span>Lunch Selection</span>
-                                <span>${stats.totalPlayers > 0 ? Math.round((stats.completedLunch / stats.totalPlayers) * 100) : 0}%</span>
-                            </div>
-                            <div class="w-full bg-gray-200 rounded-full h-2">
-                                <div class="bg-purple-500 h-2 rounded-full transition-all" style="width: ${stats.totalPlayers > 0 ? (stats.completedLunch / stats.totalPlayers) * 100 : 0}%"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6">
-                <h3 class="text-lg sm:text-xl font-bold text-gray-800 mb-4 sm:mb-6">Teams by League</h3>
-                ${Object.entries(groupByLeague(teams)).map(([leagueId, leagueTeams]) => `
-                    <div class="mb-6 last:mb-0">
-                        <h4 class="text-base sm:text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                            <span class="text-xl sm:text-2xl">🏐</span>
-                            ${getLeagueName(leagueId)}
-                        </h4>
-                        <div class="space-y-3">
-                            ${leagueTeams.map(team => {
-                                const playerCount = team.players ? Object.keys(team.players).length : 0;
-                                const waiverCount = team.players ? Object.values(team.players).filter(p => p.waiverSigned).length : 0;
-                                const lunchCount = team.players ? Object.values(team.players).filter(p => p.lunchChoice).length : 0;
-                                
-                                return `
-                                    <div class="border border-gray-200 rounded-lg p-3 sm:p-4">
-                                        <div class="flex justify-between items-start mb-2">
-                                            <div class="flex-1">
-                                                <h5 class="font-bold text-gray-800">${team.name}</h5>
-                                                <p class="text-xs sm:text-sm text-gray-600">
-                                                    Captain: ${team.captain.name} (${team.captain.email})
-                                                </p>
-                                                <p class="text-xs text-gray-500">Phone: ${team.captain.phone}</p>
-                                            </div>
-                                            <div class="text-right ml-2">
-                                                <div class="text-base sm:text-lg font-bold text-gray-800">${playerCount}</div>
-                                                <div class="text-xs text-gray-500">players</div>
+        btn.addEventListener('click', async (e) => {
+            const teamId = e.target.dataset.teamId;
+            const teamName = teams[teamId].name;
+            
+            if (confirm(`Are you sure you want to delete team "${teamName}"? This cannot be undone.`)) {
+                try {
+                    await remove(ref(database, `teams/${teamId}`));
+                    
+                    // Also remove captain
+                    const captainEmail = teams[teamId].captain.email;
+                    const captainsSnapshot = await get(ref(database, 'captains'));
+                    if (captainsSnapshot.exists()) {
+                        const captains = captainsSnapshot.val();
+                        const captainEntry = Object.entries(captains).find(([_, c]) => c.email === captainEmail);
+                        if (captainEntry) {
+                            await remove(ref(database, `captains/${captainEntry[0]}`));
+                        }
+                    }
+                    
+                    showToast(`Team "${teamName}" deleted successfully`, 'success');
+                    showOrganizerDashboard(); // Reload dashboard
+                } catch (error) {
+                    console.error('Error deleting team:', error);
+                    showToast('Error deleting team: ' + error.message, 'error');
+                }
+            }
+        });
+    });
+}
                                             </div>
                                         </div>
                                         
