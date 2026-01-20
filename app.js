@@ -1827,24 +1827,36 @@ async function showOrganizerDashboard() {
     
     const teams = teamsSnapshot.val();
     const stats = calculateStats(teams);
+    const leagueStats = calculateLeagueStats(teams);
+    const leaderboard = calculateTeamLeaderboard(teams);
+    
+    // Calculate days until tournament
+    const tournamentDate = new Date('2026-01-24');
+    const today = new Date();
+    const daysUntil = Math.ceil((tournamentDate - today) / (1000 * 60 * 60 * 24));
+    const hoursUntil = Math.ceil((tournamentDate - today) / (1000 * 60 * 60));
+    
+    // Calculate overall readiness percentage
+    const waiverProgress = stats.totalPlayers > 0 ? (stats.completedWaivers / stats.totalPlayers) * 100 : 0;
+    const lunchProgress = stats.totalPlayers > 0 ? (stats.completedLunch / stats.totalPlayers) * 100 : 0;
+    const overallReadiness = Math.round((waiverProgress + lunchProgress) / 2);
+    
+    // Identify urgent items
+    const pendingWaivers = stats.totalPlayers - stats.completedWaivers;
+    const pendingLunch = stats.totalPlayers - stats.completedLunch;
     
     document.getElementById('organizer-view').innerHTML = `
         <div class="space-y-4 sm:space-y-6 fade-in">
+            <!-- Header -->
             <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <div>
-                        <h2 class="text-xl sm:text-2xl font-bold text-gray-800 mb-2">Organizer Dashboard</h2>
-                        <p class="text-sm sm:text-base text-gray-600">Republic Day Tournament 2026 - Overview</p>
+                        <h2 class="text-xl sm:text-2xl font-bold text-gray-800 mb-2">🏐 Organizer Dashboard</h2>
+                        <p class="text-sm sm:text-base text-gray-600">Republic Day Tournament 2026</p>
                     </div>
                     <div class="flex flex-wrap gap-2">
                         <button id="manage-organizers-btn" class="bg-red-500 text-white px-3 py-2 rounded-lg hover:bg-red-600 text-xs sm:text-sm whitespace-nowrap">
                             👥 Manage Organizers
-                        </button>
-                        <button id="message-captains-btn" class="bg-blue-500 text-white px-3 py-2 rounded-lg hover:bg-blue-600 text-xs sm:text-sm whitespace-nowrap">
-                            📱 Message All Captains
-                        </button>
-                        <button id="message-players-btn" class="bg-purple-500 text-white px-3 py-2 rounded-lg hover:bg-purple-600 text-xs sm:text-sm whitespace-nowrap">
-                            📱 Message All Players
                         </button>
                         <button id="add-more-teams-btn" class="bg-green-500 text-white px-3 py-2 rounded-lg hover:bg-green-600 text-xs sm:text-sm whitespace-nowrap">
                             + Add More Teams
@@ -1853,51 +1865,433 @@ async function showOrganizerDashboard() {
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                <div class="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-lg p-4 sm:p-6 shadow-lg">
-                    <div class="text-2xl sm:text-3xl font-bold">${stats.totalTeams}</div>
-                    <div class="text-xs sm:text-sm opacity-90">Total Teams</div>
+            <!-- Tournament Readiness Card -->
+            <div class="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-lg shadow-xl p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <h3 class="text-2xl font-bold">Tournament Readiness</h3>
+                        <p class="text-sm opacity-90">Overall completion status</p>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-5xl font-bold">${overallReadiness}%</div>
+                        <div class="text-sm opacity-90">Complete</div>
+                    </div>
                 </div>
-
-                <div class="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-lg p-4 sm:p-6 shadow-lg">
-                    <div class="text-2xl sm:text-3xl font-bold">${stats.totalPlayers}</div>
-                    <div class="text-xs sm:text-sm opacity-90">Total Players</div>
+                
+                <div class="w-full bg-white/20 rounded-full h-4 mb-4">
+                    <div class="bg-white h-4 rounded-full transition-all duration-500" style="width: ${overallReadiness}%"></div>
                 </div>
-
-                <div class="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-lg p-4 sm:p-6 shadow-lg">
-                    <div class="text-2xl sm:text-3xl font-bold">${stats.completedWaivers}</div>
-                    <div class="text-xs sm:text-sm opacity-90">Waivers Signed</div>
+                
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div class="bg-white/10 rounded-lg p-3">
+                        <div class="text-3xl font-bold">${stats.totalTeams}</div>
+                        <div class="text-sm opacity-90">Teams Registered</div>
+                    </div>
+                    <div class="bg-white/10 rounded-lg p-3">
+                        <div class="text-3xl font-bold">${stats.totalPlayers}</div>
+                        <div class="text-sm opacity-90">Total Players</div>
+                    </div>
+                    <div class="bg-white/10 rounded-lg p-3">
+                        <div class="text-3xl font-bold">${stats.completedWaivers}</div>
+                        <div class="text-sm opacity-90">Waivers Signed (${Math.round(waiverProgress)}%)</div>
+                    </div>
+                    <div class="bg-white/10 rounded-lg p-3">
+                        <div class="text-3xl font-bold">${stats.completedLunch}</div>
+                        <div class="text-sm opacity-90">Lunch Selected (${Math.round(lunchProgress)}%)</div>
+                    </div>
                 </div>
-
-                <div class="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-lg p-4 sm:p-6 shadow-lg">
-                    <div class="text-2xl sm:text-3xl font-bold">${stats.completedLunch}</div>
-                    <div class="text-xs sm:text-sm opacity-90">Lunch Choices</div>
+                
+                <div class="border-t border-white/20 pt-4 mt-4">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <div class="text-2xl font-bold">⏰ ${daysUntil} Days</div>
+                            <div class="text-sm opacity-90">${hoursUntil} hours until tournament</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-lg font-bold">January 24, 2026</div>
+                            <div class="text-sm opacity-90">Tournament Day</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+            <!-- Urgent Alerts -->
+            ${pendingWaivers > 0 || pendingLunch > 0 ? `
+            <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">🔔 Action Required</h3>
+                <div class="space-y-3">
+                    ${pendingWaivers > 0 ? `
+                    <div class="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <div class="text-2xl">🔴</div>
+                        <div class="flex-1">
+                            <div class="font-semibold text-red-800">URGENT: ${pendingWaivers} players haven't signed waivers</div>
+                            <div class="text-sm text-red-600">Legal requirement - need immediate follow-up</div>
+                        </div>
+                        <button id="message-pending-waivers-btn" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm whitespace-nowrap">
+                            Send Reminder
+                        </button>
+                    </div>
+                    ` : ''}
+                    ${pendingLunch > 0 ? `
+                    <div class="flex items-center gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <div class="text-2xl">🟡</div>
+                        <div class="flex-1">
+                            <div class="font-semibold text-yellow-800">WARNING: ${pendingLunch} players haven't selected lunch</div>
+                            <div class="text-sm text-yellow-600">Needed for catering order - ${daysUntil} days remaining</div>
+                        </div>
+                        <button id="message-pending-lunch-btn" class="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 text-sm whitespace-nowrap">
+                            Send Reminder
+                        </button>
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
+            ` : `
+            <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div class="flex items-center gap-3">
+                    <div class="text-3xl">✅</div>
+                    <div>
+                        <div class="font-bold text-green-800 text-lg">All Set!</div>
+                        <div class="text-green-600">All players have completed registration</div>
+                    </div>
+                </div>
+            </div>
+            `}
+
+            <!-- Quick Actions Toolbar -->
+            <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">⚡ Quick Actions</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <button id="export-all-btn" class="flex flex-col items-center gap-2 p-4 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition">
+                        <div class="text-2xl">📊</div>
+                        <div class="text-sm font-semibold text-blue-800 text-center">Export All Data</div>
+                    </button>
+                    <button id="message-captains-btn" class="flex flex-col items-center gap-2 p-4 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-200 transition">
+                        <div class="text-2xl">📱</div>
+                        <div class="text-sm font-semibold text-purple-800 text-center">Message Captains</div>
+                    </button>
+                    <button id="message-players-btn" class="flex flex-col items-center gap-2 p-4 bg-green-50 hover:bg-green-100 rounded-lg border border-green-200 transition">
+                        <div class="text-2xl">💬</div>
+                        <div class="text-sm font-semibold text-green-800 text-center">Message Players</div>
+                    </button>
+                    <button id="export-food-btn" class="flex flex-col items-center gap-2 p-4 bg-orange-50 hover:bg-orange-100 rounded-lg border border-orange-200 transition">
+                        <div class="text-2xl">🍽️</div>
+                        <div class="text-sm font-semibold text-orange-800 text-center">Food Orders</div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Team Leaderboard -->
+            <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">🏆 Team Completion Leaderboard</h3>
+                <div class="space-y-2">
+                    ${leaderboard.slice(0, 10).map((team, index) => {
+                        const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}️⃣`;
+                        const bgColor = team.completionRate === 100 ? 'bg-green-50 border-green-200' : 
+                                       team.completionRate >= 75 ? 'bg-blue-50 border-blue-200' :
+                                       team.completionRate >= 50 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200';
+                        return `
+                        <div class="flex items-center gap-3 p-3 ${bgColor} border rounded-lg">
+                            <div class="text-2xl w-10 text-center">${medal}</div>
+                            <div class="flex-1">
+                                <div class="font-semibold text-gray-800">${team.name}</div>
+                                <div class="text-xs text-gray-600">${getLeagueName(team.leagueId)} • ${team.playerCount} players</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-2xl font-bold ${team.completionRate === 100 ? 'text-green-600' : 'text-gray-800'}">${team.completionRate}%</div>
+                                <div class="text-xs text-gray-600">${team.waiverCount}/${team.playerCount} waivers</div>
+                            </div>
+                            ${team.completionRate === 100 ? '<div class="text-2xl">✅</div>' : ''}
+                        </div>
+                        `;
+                    }).join('')}
+                </div>
+                ${leaderboard.length > 10 ? `
+                <button id="show-all-teams-btn" class="w-full mt-3 py-2 text-sm text-blue-600 hover:text-blue-700 font-semibold">
+                    Show All ${leaderboard.length} Teams →
+                </button>
+                ` : ''}
+            </div>
+
+            <!-- League Analytics -->
+            <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">📊 League Breakdown</h3>
+                <div class="space-y-4">
+                    ${Object.entries(leagueStats).map(([leagueId, league]) => {
+                        const progress = league.totalPlayers > 0 ? (league.completedWaivers / league.totalPlayers) * 100 : 0;
+                        const progressColor = progress >= 90 ? 'bg-green-500' : progress >= 70 ? 'bg-blue-500' : progress >= 50 ? 'bg-yellow-500' : 'bg-red-500';
+                        return `
+                        <div class="border border-gray-200 rounded-lg p-4">
+                            <div class="flex justify-between items-start mb-3">
+                                <div>
+                                    <h4 class="font-bold text-gray-800">${getLeagueName(leagueId)}</h4>
+                                    <div class="text-sm text-gray-600">
+                                        ${league.teamCount} teams • ${league.totalPlayers} players
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-2xl font-bold ${progress >= 90 ? 'text-green-600' : 'text-gray-800'}">${Math.round(progress)}%</div>
+                                    <div class="text-xs text-gray-600">Ready</div>
+                                </div>
+                            </div>
+                            
+                            <div class="w-full bg-gray-200 rounded-full h-3 mb-3">
+                                <div class="${progressColor} h-3 rounded-full transition-all duration-500" style="width: ${progress}%"></div>
+                            </div>
+                            
+                            <div class="grid grid-cols-3 gap-2 text-xs">
+                                <div class="text-center p-2 bg-gray-50 rounded">
+                                    <div class="font-semibold">${league.completedWaivers}/${league.totalPlayers}</div>
+                                    <div class="text-gray-600">Waivers</div>
+                                </div>
+                                <div class="text-center p-2 bg-gray-50 rounded">
+                                    <div class="font-semibold">${league.completedLunch}/${league.totalPlayers}</div>
+                                    <div class="text-gray-600">Lunch</div>
+                                </div>
+                                <div class="text-center p-2 bg-gray-50 rounded">
+                                    <div class="font-semibold">${league.teamCount}</div>
+                                    <div class="text-gray-600">Teams</div>
+                                </div>
+                            </div>
+                            
+                            ${leagueId === 'masters-volleyball' && league.ageVerified !== undefined ? `
+                            <div class="mt-2 p-2 bg-green-50 border border-green-200 rounded text-xs">
+                                ✅ ${league.ageVerified} players age verified (45+ league)
+                            </div>
+                            ` : ''}
+                        </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+
+            <!-- Food Summary -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6">
-                    <h3 class="text-lg font-bold text-gray-800 mb-4">Lunch Summary</h3>
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">🍽️ Lunch Summary</h3>
                     <div class="space-y-3">
-                        <div class="flex justify-between items-center p-3 bg-green-50 rounded">
-                            <span class="text-gray-700 text-sm sm:text-base">🥗 Vegetarian</span>
-                            <span class="font-bold text-green-600 text-lg">${stats.vegCount}</span>
+                        <div class="flex justify-between items-center p-3 bg-green-50 rounded-lg border border-green-200">
+                            <span class="text-gray-700 font-semibold">🥗 Vegetarian</span>
+                            <span class="font-bold text-green-600 text-2xl">${stats.vegCount}</span>
                         </div>
-                        <div class="flex justify-between items-center p-3 bg-red-50 rounded">
-                            <span class="text-gray-700 text-sm sm:text-base">🍗 Non-Vegetarian</span>
-                            <span class="font-bold text-red-600 text-lg">${stats.nonVegCount}</span>
+                        <div class="flex justify-between items-center p-3 bg-red-50 rounded-lg border border-red-200">
+                            <span class="text-gray-700 font-semibold">🍗 Non-Vegetarian</span>
+                            <span class="font-bold text-red-600 text-2xl">${stats.nonVegCount}</span>
                         </div>
-                        <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
-                            <span class="text-gray-700 text-sm sm:text-base">🚫 No Food</span>
-                            <span class="font-bold text-gray-600 text-lg">${stats.noFoodCount}</span>
+                        <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
+                            <span class="text-gray-700 font-semibold">🚫 No Food</span>
+                            <span class="font-bold text-gray-600 text-2xl">${stats.noFoodCount}</span>
+                        </div>
+                        <div class="flex justify-between items-center p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                            <span class="text-gray-700 font-semibold">⏳ Pending</span>
+                            <span class="font-bold text-yellow-600 text-2xl">${pendingLunch}</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6">
-                    <h3 class="text-lg font-bold text-gray-800 mb-4">Progress</h3>
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">📈 Progress Details</h3>
                     <div class="space-y-4">
                         <div>
+                            <div class="flex justify-between text-sm mb-2">
+                                <span class="font-semibold">Waiver Completion</span>
+                                <span class="font-bold">${Math.round(waiverProgress)}%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-3">
+                                <div class="bg-orange-500 h-3 rounded-full transition-all" style="width: ${waiverProgress}%"></div>
+                            </div>
+                            <div class="text-xs text-gray-600 mt-1">${stats.completedWaivers} of ${stats.totalPlayers} completed</div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-sm mb-2">
+                                <span class="font-semibold">Lunch Selection</span>
+                                <span class="font-bold">${Math.round(lunchProgress)}%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-3">
+                                <div class="bg-purple-500 h-3 rounded-full transition-all" style="width: ${lunchProgress}%"></div>
+                            </div>
+                            <div class="text-xs text-gray-600 mt-1">${stats.completedLunch} of ${stats.totalPlayers} completed</div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-sm mb-2">
+                                <span class="font-semibold">Overall Readiness</span>
+                                <span class="font-bold">${overallReadiness}%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-3">
+                                <div class="bg-green-500 h-3 rounded-full transition-all" style="width: ${overallReadiness}%"></div>
+                            </div>
+                            <div class="text-xs text-gray-600 mt-1">Combined completion metric</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- All Teams List -->
+            <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6">
+                <h3 class="text-lg sm:text-xl font-bold text-gray-800 mb-4 sm:mb-6">📋 All Teams (${stats.totalTeams})</h3>
+                ${Object.entries(groupByLeague(teams)).map(([leagueId, leagueTeams]) => `
+                    <div class="mb-6 last:mb-0">
+                        <h4 class="text-base sm:text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                            <span class="text-xl sm:text-2xl">🏐</span>
+                            ${getLeagueName(leagueId)} (${leagueTeams.length} teams)
+                        </h4>
+                        <div class="space-y-3">
+                            ${leagueTeams.map(team => {
+                                const playerCount = team.players ? Object.keys(team.players).length : 0;
+                                const waiverCount = team.players ? Object.values(team.players).filter(p => p.waiverSigned).length : 0;
+                                const lunchCount = team.players ? Object.values(team.players).filter(p => p.lunchChoice).length : 0;
+                                const completion = playerCount > 0 ? Math.round((waiverCount / playerCount) * 100) : 0;
+                                
+                                return `
+                                    <div class="border border-gray-200 rounded-lg p-3 sm:p-4 hover:border-blue-300 transition">
+                                        <div class="flex justify-between items-start mb-2">
+                                            <div class="flex-1">
+                                                <h5 class="font-bold text-gray-800">${team.name}</h5>
+                                                <p class="text-xs sm:text-sm text-gray-600">
+                                                    Captain: ${team.captain.name} (${team.captain.email})
+                                                </p>
+                                                <p class="text-xs text-gray-500">Phone: ${team.captain.phone}</p>
+                                            </div>
+                                            <div class="text-right ml-2">
+                                                <div class="text-base sm:text-lg font-bold ${completion === 100 ? 'text-green-600' : 'text-gray-800'}">${completion}%</div>
+                                                <div class="text-xs text-gray-500">${playerCount} players</div>
+                                            </div>
+                                        </div>
+                                        
+                                        ${playerCount > 0 ? `
+                                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3 text-xs mb-3">
+                                                <div class="bg-gray-50 p-2 rounded text-center">
+                                                    <div class="font-semibold">${waiverCount}/${playerCount}</div>
+                                                    <div class="text-gray-600">Waivers</div>
+                                                </div>
+                                                <div class="bg-gray-50 p-2 rounded text-center">
+                                                    <div class="font-semibold">${lunchCount}/${playerCount}</div>
+                                                    <div class="text-gray-600">Lunch</div>
+                                                </div>
+                                                <div class="bg-gray-50 p-2 rounded text-center col-span-2 sm:col-span-1">
+                                                    <div class="font-semibold ${completion === 100 ? 'text-green-600' : ''}">${completion}%</div>
+                                                    <div class="text-gray-600">Complete</div>
+                                                </div>
+                                            </div>
+                                        ` : `
+                                            <p class="text-xs sm:text-sm text-gray-500 mt-2 mb-3">No players added yet</p>
+                                        `}
+                                        
+                                        <div class="flex flex-wrap gap-2">
+                                            <button class="view-players-btn bg-blue-500 text-white px-3 py-1 rounded text-xs hover:bg-blue-600" data-team-id="${team.id}">
+                                                👥 View Players
+                                            </button>
+                                            <button class="edit-team-btn bg-green-500 text-white px-3 py-1 rounded text-xs hover:bg-green-600" data-team-id="${team.id}">
+                                                ✏️ Edit
+                                            </button>
+                                            <button class="delete-team-btn bg-red-500 text-white px-3 py-1 rounded text-xs hover:bg-red-600" data-team-id="${team.id}">
+                                                🗑️ Delete
+                                            </button>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+    
+    // Attach event listeners
+    attachOrganizerDashboardListeners(teams, stats);
+}
+
+function attachOrganizerDashboardListeners(teams, stats) {
+    // Manage Organizers button
+    const manageOrganizersBtn = document.getElementById('manage-organizers-btn');
+    if (manageOrganizersBtn) {
+        manageOrganizersBtn.addEventListener('click', async () => {
+            try {
+                await showManageOrganizersModal();
+            } catch (error) {
+                console.error('Error showing manage organizers modal:', error);
+                showToast('Error opening organizers management: ' + error.message, 'error');
+            }
+        });
+    }
+    
+    // Add More Teams button
+    const addMoreTeamsBtn = document.getElementById('add-more-teams-btn');
+    if (addMoreTeamsBtn) {
+        addMoreTeamsBtn.addEventListener('click', () => {
+            showSetupPage();
+        });
+    }
+    
+    // Message buttons
+    const messageCaptainsBtn = document.getElementById('message-captains-btn');
+    if (messageCaptainsBtn) {
+        messageCaptainsBtn.addEventListener('click', () => {
+            messageAllCaptains(teams);
+        });
+    }
+    
+    const messagePlayersBtn = document.getElementById('message-players-btn');
+    if (messagePlayersBtn) {
+        messagePlayersBtn.addEventListener('click', () => {
+            messageAllPlayers(teams);
+        });
+    }
+    
+    const messagePendingWaiversBtn = document.getElementById('message-pending-waivers-btn');
+    if (messagePendingWaiversBtn) {
+        messagePendingWaiversBtn.addEventListener('click', () => {
+            messagePlayersWithFilter(teams, 'pendingWaiver');
+        });
+    }
+    
+    const messagePendingLunchBtn = document.getElementById('message-pending-lunch-btn');
+    if (messagePendingLunchBtn) {
+        messagePendingLunchBtn.addEventListener('click', () => {
+            messagePlayersWithFilter(teams, 'pendingLunch');
+        });
+    }
+    
+    // Export buttons
+    const exportAllBtn = document.getElementById('export-all-btn');
+    if (exportAllBtn) {
+        exportAllBtn.addEventListener('click', () => {
+            exportAllData(teams, stats);
+        });
+    }
+    
+    const exportFoodBtn = document.getElementById('export-food-btn');
+    if (exportFoodBtn) {
+        exportFoodBtn.addEventListener('click', () => {
+            exportFoodOrders(teams, stats);
+        });
+    }
+    
+    // Show all teams button
+    const showAllTeamsBtn = document.getElementById('show-all-teams-btn');
+    if (showAllTeamsBtn) {
+        showAllTeamsBtn.addEventListener('click', () => {
+            showAllTeamsModal(teams);
+        });
+    }
+    
+    // View/Edit/Delete team buttons
+    document.querySelectorAll('.view-players-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const teamId = e.target.dataset.teamId;
+            showTeamPlayersModal(teamId, teams[teamId]);
+        });
+    });
+    
+    document.querySelectorAll('.edit-team-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const teamId = e.target.dataset.teamId;
+            showEditTeamModal(teamId, teams[teamId]);
+        });
+    });
+    
+    document.querySelectorAll('.delete-team-btn').forEach(btn => {
                             <div class="flex justify-between text-xs sm:text-sm mb-1">
                                 <span>Waivers Completion</span>
                                 <span>${stats.totalPlayers > 0 ? Math.round((stats.completedWaivers / stats.totalPlayers) * 100) : 0}%</span>
@@ -2689,6 +3083,314 @@ function calculateStats(teams) {
         nonVegCount,
         noFoodCount
     };
+}
+
+function calculateLeagueStats(teams) {
+    const leagueStats = {};
+    
+    Object.values(teams).forEach(team => {
+        const leagueId = team.leagueId;
+        
+        if (!leagueStats[leagueId]) {
+            leagueStats[leagueId] = {
+                teamCount: 0,
+                totalPlayers: 0,
+                completedWaivers: 0,
+                completedLunch: 0,
+                ageVerified: 0
+            };
+        }
+        
+        leagueStats[leagueId].teamCount++;
+        
+        if (team.players) {
+            Object.values(team.players).forEach(player => {
+                leagueStats[leagueId].totalPlayers++;
+                if (player.waiverSigned) leagueStats[leagueId].completedWaivers++;
+                if (player.lunchChoice) leagueStats[leagueId].completedLunch++;
+                if (player.ageVerified && leagueId === 'masters-volleyball') {
+                    leagueStats[leagueId].ageVerified++;
+                }
+            });
+        }
+    });
+    
+    return leagueStats;
+}
+
+function calculateTeamLeaderboard(teams) {
+    const leaderboard = [];
+    
+    Object.entries(teams).forEach(([teamId, team]) => {
+        const playerCount = team.players ? Object.keys(team.players).length : 0;
+        const waiverCount = team.players ? Object.values(team.players).filter(p => p.waiverSigned).length : 0;
+        const lunchCount = team.players ? Object.values(team.players).filter(p => p.lunchChoice).length : 0;
+        
+        const completionRate = playerCount > 0 
+            ? Math.round(((waiverCount + lunchCount) / (playerCount * 2)) * 100)
+            : 0;
+        
+        leaderboard.push({
+            id: teamId,
+            name: team.name,
+            leagueId: team.leagueId,
+            playerCount,
+            waiverCount,
+            lunchCount,
+            completionRate
+        });
+    });
+    
+    // Sort by completion rate (descending), then by name (ascending)
+    leaderboard.sort((a, b) => {
+        if (b.completionRate === a.completionRate) {
+            return a.name.localeCompare(b.name);
+        }
+        return b.completionRate - a.completionRate;
+    });
+    
+    return leaderboard;
+}
+
+function messagePlayersWithFilter(teams, filter) {
+    const players = [];
+    
+    Object.values(teams).forEach(team => {
+        if (team.players) {
+            Object.entries(team.players).forEach(([playerId, player]) => {
+                let include = false;
+                
+                if (filter === 'pendingWaiver' && !player.waiverSigned) {
+                    include = true;
+                } else if (filter === 'pendingLunch' && !player.lunchChoice) {
+                    include = true;
+                }
+                
+                if (include && player.phone) {
+                    players.push({
+                        name: player.name,
+                        phone: player.phone,
+                        team: team.name,
+                        playerId: playerId
+                    });
+                }
+            });
+        }
+    });
+    
+    if (players.length === 0) {
+        showToast('No players match this filter', 'info');
+        return;
+    }
+    
+    const filterName = filter === 'pendingWaiver' ? 'Pending Waiver' : 'Pending Lunch';
+    const message = filter === 'pendingWaiver'
+        ? `Hi {name}!
+
+⚠️ URGENT REMINDER ⚠️
+
+You haven't signed the waiver yet for Republic Day Tournament 2026!
+
+Team: {team}
+
+The waiver is REQUIRED to participate in the tournament.
+
+Please complete ASAP:
+1. Click your registration link
+2. Sign the waiver
+3. Select lunch preference
+
+Tournament Date: January 24, 2026
+
+Please complete this today! 🏐`
+        : `Hi {name}!
+
+Reminder: Please select your lunch preference! 🍽️
+
+Team: {team}
+
+We need to finalize food orders soon.
+
+Please complete:
+1. Click your registration link
+2. Select: Veg / Non-Veg / No Food
+
+Takes 30 seconds!
+
+Tournament Date: January 24, 2026
+
+Thank you! 🏐`;
+    
+    // Show modal with option to edit message
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+    modal.innerHTML = `
+        <div class="bg-white rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-xl font-bold mb-4">Send Reminder to ${players.length} Players (${filterName})</h3>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Message Template:</label>
+                <textarea id="bulk-message-template" class="w-full p-3 border rounded-lg h-64 font-mono text-sm">${message}</textarea>
+                <p class="text-xs text-gray-500 mt-1">Variables: {name}, {team}</p>
+            </div>
+            
+            <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p class="text-sm font-semibold text-blue-800">Sending to ${players.length} players:</p>
+                <p class="text-xs text-blue-600 mt-1">Messages will open in WhatsApp with 1 second delay between each</p>
+            </div>
+            
+            <div class="flex gap-3">
+                <button id="send-bulk-btn" class="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700">
+                    📱 Send to ${players.length} Players
+                </button>
+                <button id="cancel-bulk-btn" class="px-6 bg-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-400">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    document.getElementById('send-bulk-btn').addEventListener('click', async () => {
+        const template = document.getElementById('bulk-message-template').value;
+        
+        for (const player of players) {
+            const playerMessage = template
+                .replace(/{name}/g, player.name)
+                .replace(/{team}/g, player.team);
+            
+            const whatsappUrl = `https://wa.me/${player.phone.replace(/\D/g, '')}?text=${encodeURIComponent(playerMessage)}`;
+            window.open(whatsappUrl, '_blank');
+            
+            // Wait 1 second between messages
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        
+        modal.remove();
+        showToast(`Sent ${players.length} messages!`, 'success');
+    });
+    
+    document.getElementById('cancel-bulk-btn').addEventListener('click', () => {
+        modal.remove();
+    });
+    
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
+
+function exportAllData(teams, stats) {
+    // Create CSV content
+    let csv = 'Team,League,Captain Name,Captain Email,Captain Phone,Player Name,Player Email,Player Phone,Waiver Signed,Lunch Choice,Waiver Signed At\n';
+    
+    Object.values(teams).forEach(team => {
+        if (team.players && Object.keys(team.players).length > 0) {
+            Object.values(team.players).forEach(player => {
+                csv += `"${team.name}","${getLeagueName(team.leagueId)}","${team.captain.name}","${team.captain.email}","${team.captain.phone}","${player.name}","${player.email || 'Not provided'}","${player.phone}","${player.waiverSigned ? 'Yes' : 'No'}","${player.lunchChoice || 'Pending'}","${player.waiverSignedAt || 'N/A'}"\n`;
+            });
+        } else {
+            // Team with no players
+            csv += `"${team.name}","${getLeagueName(team.leagueId)}","${team.captain.name}","${team.captain.email}","${team.captain.phone}","No players yet","","","","",""\n`;
+        }
+    });
+    
+    // Download CSV
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tournament-data-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    
+    showToast('Data exported successfully!', 'success');
+}
+
+function exportFoodOrders(teams, stats) {
+    // Create food order CSV
+    let csv = 'Team,League,Player Name,Phone,Lunch Choice\n';
+    
+    Object.values(teams).forEach(team => {
+        if (team.players) {
+            Object.values(team.players).forEach(player => {
+                if (player.lunchChoice && player.lunchChoice !== 'none') {
+                    csv += `"${team.name}","${getLeagueName(team.leagueId)}","${player.name}","${player.phone}","${player.lunchChoice === 'veg' ? 'Vegetarian' : 'Non-Vegetarian'}"\n`;
+                }
+            });
+        }
+    });
+    
+    // Add summary
+    csv += '\n\nSUMMARY\n';
+    csv += `Vegetarian,${stats.vegCount}\n`;
+    csv += `Non-Vegetarian,${stats.nonVegCount}\n`;
+    csv += `No Food,${stats.noFoodCount}\n`;
+    csv += `Total Food Orders,${stats.vegCount + stats.nonVegCount}\n`;
+    
+    // Download CSV
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `food-orders-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    
+    showToast('Food orders exported successfully!', 'success');
+}
+
+function showAllTeamsModal(teams) {
+    const leaderboard = calculateTeamLeaderboard(teams);
+    
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+    modal.innerHTML = `
+        <div class="bg-white rounded-lg max-w-4xl w-full p-6 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-2xl font-bold mb-4">🏆 Complete Team Leaderboard (${leaderboard.length} teams)</h3>
+            
+            <div class="space-y-2">
+                ${leaderboard.map((team, index) => {
+                    const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
+                    const bgColor = team.completionRate === 100 ? 'bg-green-50 border-green-200' : 
+                                   team.completionRate >= 75 ? 'bg-blue-50 border-blue-200' :
+                                   team.completionRate >= 50 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200';
+                    return `
+                    <div class="flex items-center gap-3 p-3 ${bgColor} border rounded-lg">
+                        <div class="text-lg font-bold w-12 text-center">${medal}</div>
+                        <div class="flex-1">
+                            <div class="font-semibold text-gray-800">${team.name}</div>
+                            <div class="text-xs text-gray-600">${getLeagueName(team.leagueId)} • ${team.playerCount} players</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-xl font-bold ${team.completionRate === 100 ? 'text-green-600' : 'text-gray-800'}">${team.completionRate}%</div>
+                            <div class="text-xs text-gray-600">${team.waiverCount}W ${team.lunchCount}L</div>
+                        </div>
+                        ${team.completionRate === 100 ? '<div class="text-2xl">✅</div>' : ''}
+                    </div>
+                    `;
+                }).join('')}
+            </div>
+            
+            <button id="close-modal-btn" class="w-full mt-6 bg-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-400">
+                Close
+            </button>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    document.getElementById('close-modal-btn').addEventListener('click', () => {
+        modal.remove();
+    });
+    
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
 }
 
 function groupByLeague(teams) {
