@@ -138,7 +138,7 @@ function askForRole() {
     });
 }
 
-function showRoleSwitcher(currentRole, captainSnapshot) {
+function showRoleSwitcher(currentRole, captainTeams) {
     const userInfo = document.getElementById('user-info');
     
     // Remove existing switcher if present
@@ -156,11 +156,10 @@ function showRoleSwitcher(currentRole, captainSnapshot) {
         // Update role in database
         const updates = { role: newRole };
         
-        if (newRole === 'captain' && captainSnapshot.exists()) {
-            const captainId = Object.keys(captainSnapshot.val())[0];
-            const captainData = captainSnapshot.val()[captainId];
-            updates.teamId = captainData.teamId;
-            updates.captainId = captainId;
+        // If switching to captain and captain teams exist
+        if (newRole === 'captain' && captainTeams && captainTeams.length > 0) {
+            // Use first team by default (or last selected team if available)
+            updates.teamId = captainTeams[0].id;
         }
         
         await update(ref(database, `users/${currentUser.uid}`), updates);
