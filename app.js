@@ -2460,10 +2460,18 @@ function messageAllCaptains(teams) {
     const captains = [];
     
     Object.values(teams).forEach(team => {
+        const playerCount = team.players ? Object.keys(team.players).length : 0;
+        const waiverCount = team.players ? Object.values(team.players).filter(p => p.waiverSigned).length : 0;
+        const completionRate = playerCount > 0 ? Math.round((waiverCount / playerCount) * 100) : 0;
+        
         captains.push({
             name: team.captain.name,
             phone: team.captain.phone,
-            team: team.name
+            email: team.captain.email,
+            team: team.name,
+            leagueId: team.leagueId,
+            playerCount: playerCount,
+            completionRate: completionRate
         });
     });
     
@@ -2473,63 +2481,135 @@ function messageAllCaptains(teams) {
     }
     
     const modal = document.createElement('div');
-    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+    modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
     modal.innerHTML = `
-        <div class="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
-            <h3 class="text-xl font-bold text-gray-800 mb-4">Message All Captains (${captains.length})</h3>
+        <div class="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6">
+            <h3 class="text-2xl font-bold text-gray-800 mb-4">📱 Message Captains</h3>
             
-            <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p class="text-sm text-gray-700 mb-2">
-                    <strong>This will open WhatsApp for each captain individually.</strong>
-                </p>
-                <p class="text-xs text-gray-600">
-                    App Link: <code class="bg-white px-2 py-1 rounded">https://rd-tournament.vercel.app</code>
-                </p>
+            <!-- Selection Controls -->
+            <div class="mb-4 flex flex-wrap gap-2">
+                <button id="select-all-captains" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm">
+                    ✅ Select All (${captains.length})
+                </button>
+                <button id="deselect-all-captains" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 text-sm">
+                    ❌ Deselect All
+                </button>
+                <button id="select-incomplete-captains" class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 text-sm">
+                    ⚠️ Select Incomplete (<100%)
+                </button>
+                <div class="flex-1"></div>
+                <div class="px-3 py-2 bg-blue-50 rounded-lg text-sm font-semibold text-blue-700">
+                    Selected: <span id="selected-count">0</span>
+                </div>
             </div>
             
+            <!-- Captain List with Checkboxes -->
+            <div class="mb-4 border border-gray-300 rounded-lg max-h-64 overflow-y-auto">
+                <div class="sticky top-0 bg-gray-50 border-b border-gray-300 p-2 text-xs font-semibold text-gray-700 grid grid-cols-12 gap-2">
+                    <div class="col-span-1 text-center">Select</div>
+                    <div class="col-span-3">Captain</div>
+                    <div class="col-span-3">Team</div>
+                    <div class="col-span-2">League</div>
+                    <div class="col-span-2">Players</div>
+                    <div class="col-span-1 text-center">Status</div>
+                </div>
+                ${captains.map((captain, index) => {
+                    const statusColor = captain.completionRate === 100 ? 'text-green-600' : 
+                                       captain.completionRate >= 75 ? 'text-blue-600' :
+                                       captain.completionRate >= 50 ? 'text-yellow-600' : 'text-red-600';
+                    const statusIcon = captain.completionRate === 100 ? '✅' : 
+                                      captain.completionRate >= 75 ? '🔵' :
+                                      captain.completionRate >= 50 ? '🟡' : '🔴';
+                    return `
+                    <div class="p-2 border-b border-gray-200 hover:bg-gray-50 text-xs grid grid-cols-12 gap-2 items-center">
+                        <div class="col-span-1 text-center">
+                            <input type="checkbox" class="captain-checkbox w-4 h-4 cursor-pointer" 
+                                   data-index="${index}" 
+                                   data-completion="${captain.completionRate}">
+                        </div>
+                        <div class="col-span-3">
+                            <div class="font-semibold">${captain.name}</div>
+                            <div class="text-gray-500 text-xs">${captain.phone}</div>
+                        </div>
+                        <div class="col-span-3 font-medium">${captain.team}</div>
+                        <div class="col-span-2 text-gray-600">${getLeagueName(captain.leagueId).replace(' Volleyball', '').replace(' Throwball', '')}</div>
+                        <div class="col-span-2 text-center text-gray-700">${captain.playerCount}</div>
+                        <div class="col-span-1 text-center">
+                            <span class="${statusColor} font-bold" title="${captain.completionRate}% complete">${statusIcon}</span>
+                        </div>
+                    </div>
+                    `;
+                }).join('')}
+            </div>
+            
+            <!-- Message Template -->
             <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Message Template:</label>
-                <textarea id="captain-message" class="w-full px-3 py-2 border border-gray-300 rounded-lg h-48 text-sm" placeholder="Customize your message...">Hi {name}!
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Message Template:</label>
+                <textarea id="captain-message-template" class="w-full px-3 py-2 border border-gray-300 rounded-lg h-48 text-sm font-mono">Hi {name}! 👋
 
 This is the organizer of Republic Day Tournament 2026 🏐
 
-*IMPORTANT REMINDER:*
+*IMPORTANT UPDATE for Team {team}:*
 
-🔗 *App Link:* https://rd-tournament.vercel.app
+🔗 *Tournament App:* https://rd-tournament.vercel.app
 
-Please login to the app using your registered email to:
-✅ Add your players to team "{team}"
+Please login using: {email}
+
+*Your Tasks:*
+✅ Add all your players to the app
 ✅ Share registration links with them
-✅ Track their waiver completion
+✅ Ensure they sign waivers (REQUIRED!)
+✅ Track their lunch preferences
 
-*What your players need to do:*
-1. Click their registration link
-2. Sign the waiver
-3. Select lunch preference (Veg/Non-Veg)
+*Current Status:*
+Team Progress: {completion}% complete
+Players Added: {players}
 
-Tournament Date: *January 24, 2026*
+*Tournament Date:* January 24, 2026
 
-Questions? Reply to this message!
+Need help? Reply to this message!
 
-Thank you! 🎉</textarea>
+Let's make this tournament amazing! 🎉</textarea>
+                <p class="text-xs text-gray-500 mt-1">
+                    Variables: {name}, {team}, {email}, {completion}, {players}
+                </p>
             </div>
             
-            <div class="space-y-2 mb-4 max-h-48 overflow-y-auto">
-                <p class="text-sm font-medium text-gray-700">Captains List:</p>
-                ${captains.map((c, i) => `
-                    <div class="text-xs p-2 bg-gray-50 rounded flex justify-between">
-                        <span>${i+1}. ${c.name} - ${c.team}</span>
-                        <span class="text-gray-500">${c.phone}</span>
+            <!-- Send Options -->
+            <div class="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div class="flex items-start gap-2 mb-3">
+                    <div class="text-2xl">⚠️</div>
+                    <div class="flex-1">
+                        <p class="text-sm font-semibold text-yellow-800 mb-1">Auto-Send Method:</p>
+                        <p class="text-xs text-yellow-700">
+                            WhatsApp Web API requires each message to be sent from a separate tab. 
+                            The app will automatically open WhatsApp for each selected captain with a 2-second delay between each.
+                        </p>
                     </div>
-                `).join('')}
+                </div>
+                
+                <div class="flex items-center gap-3 text-sm">
+                    <label class="flex items-center gap-2">
+                        <input type="radio" name="send-method" value="auto" checked class="w-4 h-4">
+                        <span>Auto-Open (2 sec delay)</span>
+                    </label>
+                    <label class="flex items-center gap-2">
+                        <input type="radio" name="send-method" value="manual" class="w-4 h-4">
+                        <span>Manual (I'll click Send in each tab)</span>
+                    </label>
+                </div>
             </div>
             
+            <!-- Action Buttons -->
             <div class="flex gap-3">
-                <button class="close-modal flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400">
+                <button id="close-captain-modal" class="px-6 bg-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-400">
                     Cancel
                 </button>
-                <button id="send-to-captains" class="flex-1 bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600">
-                    Open WhatsApp for Each Captain
+                <button id="preview-messages-btn" class="flex-1 bg-purple-500 text-white py-3 rounded-lg font-semibold hover:bg-purple-600">
+                    👁️ Preview Messages
+                </button>
+                <button id="send-captain-messages" class="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700">
+                    📱 Send to Selected (<span id="send-count">0</span>)
                 </button>
             </div>
         </div>
@@ -2537,30 +2617,174 @@ Thank you! 🎉</textarea>
     
     document.body.appendChild(modal);
     
-    modal.querySelector('.close-modal').addEventListener('click', () => modal.remove());
+    // Update selected count
+    function updateSelectedCount() {
+        const checkboxes = modal.querySelectorAll('.captain-checkbox:checked');
+        const count = checkboxes.length;
+        modal.querySelector('#selected-count').textContent = count;
+        modal.querySelector('#send-count').textContent = count;
+    }
     
-    modal.querySelector('#send-to-captains').addEventListener('click', () => {
-        const messageTemplate = document.getElementById('captain-message').value;
-        let successCount = 0;
-        
-        captains.forEach((captain, index) => {
-            setTimeout(() => {
-                const personalizedMessage = messageTemplate
-                    .replace('{name}', captain.name)
-                    .replace('{team}', captain.team);
-                
-                const whatsappUrl = `https://wa.me/${captain.phone.replace(/\D/g, '')}?text=${encodeURIComponent(personalizedMessage)}`;
-                window.open(whatsappUrl, '_blank');
-                successCount++;
-                
-                if (successCount === captains.length) {
-                    showToast(`Opened WhatsApp for all ${captains.length} captains!`, 'success');
-                }
-            }, index * 1000); // 1 second delay between each
+    // Select All
+    modal.querySelector('#select-all-captains').addEventListener('click', () => {
+        modal.querySelectorAll('.captain-checkbox').forEach(cb => cb.checked = true);
+        updateSelectedCount();
+    });
+    
+    // Deselect All
+    modal.querySelector('#deselect-all-captains').addEventListener('click', () => {
+        modal.querySelectorAll('.captain-checkbox').forEach(cb => cb.checked = false);
+        updateSelectedCount();
+    });
+    
+    // Select Incomplete
+    modal.querySelector('#select-incomplete-captains').addEventListener('click', () => {
+        modal.querySelectorAll('.captain-checkbox').forEach(cb => {
+            cb.checked = parseInt(cb.dataset.completion) < 100;
         });
-        
+        updateSelectedCount();
+    });
+    
+    // Checkbox change
+    modal.querySelectorAll('.captain-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
+    
+    // Close modal
+    modal.querySelector('#close-captain-modal').addEventListener('click', () => {
         modal.remove();
     });
+    
+    // Preview messages
+    modal.querySelector('#preview-messages-btn').addEventListener('click', () => {
+        const template = modal.querySelector('#captain-message-template').value;
+        const selectedCheckboxes = modal.querySelectorAll('.captain-checkbox:checked');
+        
+        if (selectedCheckboxes.length === 0) {
+            showToast('Please select at least one captain', 'error');
+            return;
+        }
+        
+        // Show preview modal
+        const previewModal = document.createElement('div');
+        previewModal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4';
+        previewModal.innerHTML = `
+            <div class="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+                <h3 class="text-xl font-bold mb-4">📋 Message Preview</h3>
+                <div class="space-y-3 mb-4">
+                    ${Array.from(selectedCheckboxes).slice(0, 3).map(cb => {
+                        const index = parseInt(cb.dataset.index);
+                        const captain = captains[index];
+                        const message = template
+                            .replace(/{name}/g, captain.name)
+                            .replace(/{team}/g, captain.team)
+                            .replace(/{email}/g, captain.email)
+                            .replace(/{completion}/g, captain.completionRate)
+                            .replace(/{players}/g, captain.playerCount);
+                        return `
+                        <div class="border border-gray-300 rounded-lg p-3">
+                            <div class="text-xs font-semibold text-gray-600 mb-2">To: ${captain.name} (${captain.team})</div>
+                            <div class="text-sm whitespace-pre-wrap bg-gray-50 p-3 rounded">${message}</div>
+                        </div>
+                        `;
+                    }).join('')}
+                    ${selectedCheckboxes.length > 3 ? `
+                    <div class="text-sm text-gray-600 text-center">
+                        ... and ${selectedCheckboxes.length - 3} more messages
+                    </div>
+                    ` : ''}
+                </div>
+                <button id="close-preview" class="w-full bg-blue-500 text-white py-3 rounded-lg font-semibold hover:bg-blue-600">
+                    Close Preview
+                </button>
+            </div>
+        `;
+        
+        document.body.appendChild(previewModal);
+        
+        previewModal.querySelector('#close-preview').addEventListener('click', () => {
+            previewModal.remove();
+        });
+        
+        previewModal.addEventListener('click', (e) => {
+            if (e.target === previewModal) previewModal.remove();
+        });
+    });
+    
+    // Send messages
+    modal.querySelector('#send-captain-messages').addEventListener('click', async () => {
+        const template = modal.querySelector('#captain-message-template').value;
+        const selectedCheckboxes = modal.querySelectorAll('.captain-checkbox:checked');
+        const sendMethod = modal.querySelector('input[name="send-method"]:checked').value;
+        
+        if (selectedCheckboxes.length === 0) {
+            showToast('Please select at least one captain', 'error');
+            return;
+        }
+        
+        if (!confirm(`Send message to ${selectedCheckboxes.length} captain${selectedCheckboxes.length > 1 ? 's' : ''}?`)) {
+            return;
+        }
+        
+        modal.remove();
+        
+        const delay = sendMethod === 'auto' ? 2000 : 1000; // 2 seconds for auto, 1 for manual
+        let successCount = 0;
+        
+        // Show progress toast
+        const progressToast = showProgressToast(`Sending to ${selectedCheckboxes.length} captains...`);
+        
+        for (let i = 0; i < selectedCheckboxes.length; i++) {
+            const cb = selectedCheckboxes[i];
+            const index = parseInt(cb.dataset.index);
+            const captain = captains[index];
+            
+            await new Promise(resolve => setTimeout(resolve, i * delay));
+            
+            const personalizedMessage = template
+                .replace(/{name}/g, captain.name)
+                .replace(/{team}/g, captain.team)
+                .replace(/{email}/g, captain.email)
+                .replace(/{completion}/g, captain.completionRate)
+                .replace(/{players}/g, captain.playerCount);
+            
+            const whatsappUrl = `https://wa.me/${captain.phone.replace(/\D/g, '')}?text=${encodeURIComponent(personalizedMessage)}`;
+            window.open(whatsappUrl, '_blank');
+            successCount++;
+            
+            // Update progress
+            updateProgressToast(progressToast, `Sent ${successCount}/${selectedCheckboxes.length}...`);
+        }
+        
+        // Final success message
+        setTimeout(() => {
+            progressToast.remove();
+            showToast(`✅ Opened WhatsApp for ${successCount} captain${successCount > 1 ? 's' : ''}!`, 'success');
+        }, 1000);
+    });
+    
+    // Click outside to close
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
+
+function showProgressToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'fixed bottom-4 right-4 bg-blue-600 text-white px-6 py-4 rounded-lg shadow-xl z-[70] flex items-center gap-3';
+    toast.innerHTML = `
+        <div class="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+        <span id="progress-text">${message}</span>
+    `;
+    document.body.appendChild(toast);
+    return toast;
+}
+
+function updateProgressToast(toast, message) {
+    const textEl = toast.querySelector('#progress-text');
+    if (textEl) textEl.textContent = message;
 }
 
 function messageAllPlayers(teams) {
