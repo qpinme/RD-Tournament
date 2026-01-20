@@ -34,6 +34,10 @@ let userRole = null;
 let userTeamId = null;
 let userTeamIds = []; // Array to store all team IDs for captains with multiple teams
 
+// Immediate verification that new code is loaded
+console.log('🎯 NEW CODE LOADED - Version 2.0 - Multiple Teams Support');
+console.log('✅ getTeamCount function available');
+
 // Expose to window for debugging - attach to window immediately
 window.debugTeamInfo = function() {
     console.log('═══════════════════════════════════════');
@@ -55,10 +59,12 @@ window.debugTeamInfo = function() {
 
 // Also expose variables directly for easier console access
 window.getTeamCount = function() {
+    console.log('🔍 Team count:', userTeamIds.length);
     return userTeamIds.length;
 };
 
 window.getAllTeamIds = function() {
+    console.log('🔍 All team IDs:', userTeamIds);
     return userTeamIds;
 };
 
@@ -1509,7 +1515,13 @@ async function showPlayerView(playerId) {
 
                     <form id="player-form" class="space-y-6">
                         <div class="bg-gray-50 p-4 sm:p-6 rounded-lg">
-                            <h3 class="font-bold text-gray-800 mb-4">Tournament Waiver</h3>
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="font-bold text-gray-800">Tournament Waiver</h3>
+                                <button type="button" id="download-waiver-btn" class="bg-cyan-100 text-gray-800 px-4 py-2 rounded-lg hover:bg-cyan-200 text-sm font-semibold flex items-center gap-2">
+                                    <span>📄</span>
+                                    <span>Download/Print</span>
+                                </button>
+                            </div>
                             <div class="text-sm text-gray-700 space-y-2 mb-4 max-h-60 overflow-y-auto border border-gray-200 p-4 rounded bg-white">
                                 <p class="font-semibold text-center mb-3">REPUBLIC DAY TOURNAMENT WAIVER AND RELEASE OF LIABILITY</p>
                                 <p class="font-semibold mb-2">READ BEFORE SIGNING</p>
@@ -1570,8 +1582,11 @@ async function showPlayerView(playerId) {
                             <div class="space-y-3">
                                 <label class="flex items-start gap-3 cursor-pointer p-3 border-2 border-gray-300 rounded-lg hover:bg-white ${playerData.lunchChoice === 'veg' ? 'border-orange-500 bg-orange-50' : ''}">
                                     <input type="radio" name="lunch" value="veg" class="w-4 h-4 text-orange-500 mt-1" required ${playerData.lunchChoice === 'veg' ? 'checked' : ''}>
-                                    <div>
-                                        <div class="text-gray-800 font-semibold">🥗 Vegetarian Menu</div>
+                                    <div class="flex-1">
+                                        <div class="flex justify-between items-center">
+                                            <div class="text-gray-800 font-semibold">🥗 Vegetarian Menu</div>
+                                            <div class="text-green-600 font-bold">$10</div>
+                                        </div>
                                         <div class="text-xs text-gray-600 mt-1">
                                             • Veg Appetizer<br>
                                             • Veg Biryani<br>
@@ -1582,8 +1597,11 @@ async function showPlayerView(playerId) {
 
                                 <label class="flex items-start gap-3 cursor-pointer p-3 border-2 border-gray-300 rounded-lg hover:bg-white ${playerData.lunchChoice === 'nonveg' ? 'border-orange-500 bg-orange-50' : ''}">
                                     <input type="radio" name="lunch" value="nonveg" class="w-4 h-4 text-orange-500 mt-1" required ${playerData.lunchChoice === 'nonveg' ? 'checked' : ''}>
-                                    <div>
-                                        <div class="text-gray-800 font-semibold">🍗 Non-Vegetarian Menu</div>
+                                    <div class="flex-1">
+                                        <div class="flex justify-between items-center">
+                                            <div class="text-gray-800 font-semibold">🍗 Non-Vegetarian Menu</div>
+                                            <div class="text-green-600 font-bold">$10</div>
+                                        </div>
                                         <div class="text-xs text-gray-600 mt-1">
                                             • Non-Veg Appetizer<br>
                                             • Chicken Biryani<br>
@@ -1698,6 +1716,56 @@ async function showPlayerView(playerId) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             hasSignature = false;
             showToast('Signature cleared', 'info');
+        });
+        
+        // Download/Print Waiver button
+        document.getElementById('download-waiver-btn').addEventListener('click', () => {
+            const waiverContent = `
+REPUBLIC DAY TOURNAMENT WAIVER AND RELEASE OF LIABILITY
+
+READ BEFORE SIGNING
+
+In consideration of being allowed to participate in any way in the Republic Day Volleyball and Throwball Tournament, related events and activities, the undersigned acknowledges, appreciates, and agrees that:
+
+1. The risks of injury and illness (ex: communicable diseases such as MRSA, influenza, and COVID-19) from the activities involved in this program are significant, including the potential for permanent paralysis and death, and while particular rules, equipment, and personal discipline may reduce these risks, the risks of serious injury and illness do exist; and,
+
+2. I understand that it is my personal responsibility to inspect the playing area and determine whether or not it is safe. By participating in the tournament, I acknowledge that I have inspected the area and I take full responsibility for my decision to participate in the tournament.
+
+3. I KNOWINGLY AND FREELY ASSUME ALL SUCH RISKS, both known and unknown, EVEN IF ARISING FROM THE NEGLIGENCE OF THE RELEASEES or others, and assume full responsibility for my participation; and,
+
+4. I willingly agree to comply with the stated and customary terms and conditions for participation. If, however, I observe any unusual significant hazard during my presence or participation, I will remove myself from participation and bring such to the attention of the nearest official immediately; and,
+
+5. I, for myself and on behalf of my heirs, assigns, personal representatives and next of kin, HEREBY RELEASE AND HOLD HARMLESS Republic Day Volleyball and Throwball Tournament, Katy Whackers Club, Empower Her foundation & Faith West Incorporated their officers, officials, agents, and/or employees, other participants, sponsoring agencies, sponsors, advertisers, and if applicable, owners and lessors of premises used to conduct the event ("RELEASEES"), WITH RESPECT TO ANY AND ALL INJURY, ILLNESS, DISABILITY, DEATH, or loss or damage to person or property, WHETHER ARISING FROM THE NEGLIGENCE OF THE RELEASEES OR OTHERWISE, to the fullest extent permitted by law.
+
+I HAVE READ THIS RELEASE OF LIABILITY AND ASSUMPTION OF RISK AGREEMENT, FULLY UNDERSTAND ITS TERMS, UNDERSTAND THAT I HAVE GIVEN UP SUBSTANTIAL RIGHTS BY SIGNING IT, AND SIGN IT FREELY AND VOLUNTARILY WITHOUT ANY INDUCEMENT.
+
+---
+
+Player Name: ${playerData.name}
+Team: ${teamData.name}
+Date: ${new Date().toLocaleDateString()}
+
+Signature: _________________________________
+
+Full Legal Name: _________________________________
+
+Please sign and bring this form to the tournament if you prefer a paper copy.
+`;
+            
+            // Create a blob with the waiver text
+            const blob = new Blob([waiverContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            
+            // Create download link
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Waiver_${playerData.name.replace(/\s+/g, '_')}_${teamData.name.replace(/\s+/g, '_')}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showToast('Waiver downloaded! You can also print using Ctrl+P', 'success');
         });
         
         document.getElementById('player-form').addEventListener('submit', async (e) => {
